@@ -1,6 +1,5 @@
 # TODO
 
-+ spec for minilanguage
 + parser
 + executor
 + class for repping in runtime
