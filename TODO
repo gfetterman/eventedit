@@ -1,0 +1,8 @@
+# TODO
+
++ spec for minilanguage
++ parser
++ executor
++ class for repping in runtime
+  + pushdown stack for commands
++ corrections file writer
