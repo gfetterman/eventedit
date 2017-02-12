@@ -2,6 +2,7 @@ import pytest
 import copy
 import labelcorrection as lc
 
+TEST_COMMAND = '(set-name (interval 3 4.7 5.0 "d" "focus_bird") "b")'
 TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 2.1, 'stop': 3.0, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
@@ -62,3 +63,67 @@ def test_create():
     assert labels[2]['name'] == 'c2'
     assert labels[2]['tier'] == 'female'
     assert labels[3]['name'] == 'c'
+
+def test_tokenize():
+    tkns = lc.tokenize(TEST_COMMAND)
+    assert len(tkns) == 12
+    assert tkns[0] == '('
+    assert tkns[5] == '4.7'
+    assert tkns[8] == '"focus_bird"'
+    assert tkns[11] == ')'
+    
+    tkns = lc.tokenize('string "spaces preserved"')
+    assert len(tkns) == 2
+    assert tkns[0] == 'string'
+    assert tkns[1] == '"spaces preserved"'
+
+def test_atomize():
+    assert lc.atomize('1') == 1
+    assert lc.atomize('1.5') == 1.5
+    assert lc.atomize('(') == '('
+    assert lc.atomize('"focus_bird"') == 'focus_bird'
+    assert isinstance(lc.atomize('set-name'), lc.Symbol)
+    assert lc.atomize('set-name') == 'set_name'
+
+def test_parse_and_read_from_tokens():
+    with pytest.raises(SyntaxError):
+        lc.read_from_tokens([])
+    
+    with pytest.raises(SyntaxError):
+        lc.read_from_tokens([')'])
+    
+    nested_list = lc.parse(TEST_COMMAND)
+    assert len(nested_list) == 3
+    assert len(nested_list[1]) == 6
+    assert nested_list[0] == 'set_name'
+    assert nested_list[1][0] == 'interval'
+    assert nested_list[1][5] == 'focus_bird'
+
+def test_evaluate():
+    def complex_proc(**kwargs):
+        for a in kwargs:
+            if isinstance(kwargs[a], float):
+                kwargs[a] += 1.0
+        return kwargs
+    test_env = {'symbol': 'answer',
+                'simple_proc': dict,
+                'complex_proc': complex_proc}
+    
+    assert lc.evaluate(lc.Symbol('symbol'), test_env) == 'answer'
+    
+    assert lc.evaluate(1.5, test_env) == 1.5
+    
+    expr = [lc.Symbol('simple_proc'),
+            '#:start', 1.5, '#:stop', 2.0, '#:name', 'a']
+    result = lc.evaluate(expr, test_env)
+    assert isinstance(result, dict)
+    assert result['start'] == 1.5
+    assert result['stop'] == 2.0
+    assert result['name'] == 'a'
+    
+    expr[0] = lc.Symbol('complex_proc')
+    result = lc.evaluate(expr, test_env)
+    assert isinstance(result, dict)
+    assert result['start'] == 2.5
+    assert result['stop'] == 3.0
+    assert result['name'] == 'a'

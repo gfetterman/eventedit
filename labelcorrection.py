@@ -1,4 +1,5 @@
 import copy
+import itertools
 
 # raw operations
 def set_name(labels, index, new_name):
@@ -36,3 +37,102 @@ def create(labels, index, start, stop, name, **kwargs):
                  'name': name}
     new_point.update(kwargs)
     labels.insert(index, new_point)
+
+# parsing stuff
+class Symbol(str): pass
+
+
+def lc_env():
+    env = {}
+    env.update({'set_name': set_name,
+                'move_boundary': move_bd,
+                'merge': merge,
+                'split': split,
+                'delete': delete,
+                'create': create,
+                'interval': dict,
+                'new_val': dict})
+    return env
+
+
+def tokenize(command):
+    first_pass = command.split()
+    second_pass = []
+    in_string = False
+    for token in first_pass:
+        num_quotes = token.count('"')
+        if num_quotes % 2 != 0 and not in_string:
+            # open quote
+            second_pass.append(token)
+            in_string = True
+        elif num_quotes % 2 != 0 and in_string:
+            # close quote
+            second_pass[-1] += ' ' + token
+            in_string = False
+        elif num_quotes == 0 and in_string:
+            # middle words in quote
+            second_pass[-1] += ' ' + token
+        else:
+            second_pass.append(token)
+    third_pass = []
+    for token in second_pass:
+        if token[0] == '(':
+            third_pass.append('(')
+            if len(token) > 1:
+                third_pass.append(token[1:])
+        elif token[-1] == ')':
+            if len(token) > 1:
+                third_pass.append(token[:-1])
+            third_pass.append(')')
+        else:
+            third_pass.append(token)
+    return third_pass
+
+
+def atomize(token):
+    if token[0] == '"':
+        return token[1:-1].decode('string_escape')
+    try:
+        return int(token)
+    except ValueError:
+        try:
+            return float(token)
+        except ValueError:
+            return Symbol(token.replace('-', '_'))
+
+
+def read_from_tokens(token_list):
+    if len(token_list) == 0:
+        raise SyntaxError('unexpected EOF')
+    token = token_list.pop(0)
+    if token == '(':
+        nested_list = []
+        while token_list[0] != ')':
+            nested_list.append(read_from_tokens(token_list))
+        token_list.pop(0)
+        return nested_list
+    elif token == ')':
+        raise SyntaxError('unexpected )')
+    else:
+        return atomize(token)
+
+
+def parse(command):
+    return read_from_tokens(tokenize(command))
+
+
+def evaluate(expr, env=lc_env):
+    if isinstance(expr, Symbol):
+        return env[expr]
+    elif not isinstance(expr, list):
+        return expr
+    else:
+        proc = evaluate(expr[0], env)
+        kwargs = {p[0][2:]: evaluate(p[1], env) for p in _grouper(expr[1:], 2)}
+        return proc(**kwargs)
+
+
+def _grouper(iterable, n):
+    """Returns nonoverlapping windows of input of length n."""
+    args = [iter(iterable)] * n
+    return itertools.izip_longest(*args)
