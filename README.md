@@ -15,3 +15,12 @@ The language describes a limited set of operations on interval labels:
 4. Split an interval in two
 5. Delete an interval
 
+## Minilanguage implementation and representation
+
+Corrections stored in memory and on disk are structured in a Lisp-like prefix
+notation. While the current language spec is extremely limited, this will
+hopefully avoid restricting future extensions.
+
+The choice of a Lisp-like representation also simplifies parsing. The
+parser is a feature-sparse version of [Peter Norvig's `lispy`]
+(http://norvig.com/lispy.html).
