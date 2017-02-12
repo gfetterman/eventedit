@@ -4,7 +4,7 @@ import labelcorrection as lc
 
 TEST_COMMAND = '(set-name (interval 3 4.7 5.0 "d" "focus_bird") "b")'
 TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
-               {'start': 2.1, 'stop': 3.0, 'name': 'b'},
+               {'start': 2.1, 'stop': 3.5, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
 
@@ -127,3 +127,26 @@ def test_evaluate():
     assert result['start'] == 2.5
     assert result['stop'] == 3.0
     assert result['name'] == 'a'
+
+def test_whole_stack():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = '(set-name #:labels labels #:index 0 #:new-name "b")'
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['name'] == 'b'
+    
+    cmd = '(move-boundary #:labels labels #:index 1 #:which "start" #:delta -0.1)'
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[1]['start'] == TEST_LABELS[1]['start'] - 0.1
+    
+    cmd = '(merge #:labels labels #:index1 1 #:index2 2)'
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == len(TEST_LABELS) - 1
+    assert labels[1]['stop'] == TEST_LABELS[2]['stop']
+    
+    cmd = '(split #:labels labels #:index 1 #:split-pt 3.5)'
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == len(TEST_LABELS)
+    assert labels[1]['stop'] == TEST_LABELS[1]['stop']

@@ -46,7 +46,7 @@ def lc_env():
     env = {}
     env.update({'set_name': set_name,
                 'move_boundary': move_bd,
-                'merge': merge,
+                'merge': merge_adjacent,
                 'split': split,
                 'delete': delete,
                 'create': create,
@@ -121,7 +121,7 @@ def parse(command):
     return read_from_tokens(tokenize(command))
 
 
-def evaluate(expr, env=lc_env):
+def evaluate(expr, env=lc_env()):
     if isinstance(expr, Symbol):
         return env[expr]
     elif not isinstance(expr, list):
