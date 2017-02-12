@@ -2,41 +2,56 @@ import copy
 import itertools
 
 # raw operations
-def set_name(labels, index, new_name):
-    labels[index]['name'] = new_name
+def set_name(labels, target, new_name, **kwargs):
+    labels[target['index']]['name'] = new_name
 
-def set_bd(labels, index, which, new_bd):
+def set_bd(labels, target, which, new_bd, **kwargs):
     if which not in ('start', 'stop'):
-        raise IndexError('boundary name not recognized: ' + which)
-    labels[index][which] = new_bd
+        raise KeyError('boundary name not recognized: ' + which)
+    labels[target['index']][which] = new_bd
 
-def merge_adjacent(labels, index1, index2):
-    if index2 != index1 + 1:
-        raise ValueError('can only merge index-adjacent intervals')
-    labels[index1]['stop'] = labels[index2]['stop']
-    new_name = labels[index1]['name'] + '+' + labels[index2]['name']
-    labels[index1]['name'] = new_name
-    labels.pop(index2)
+def merge_next(labels, target, **kwargs):
+    index = target['index']
+    labels[index]['stop'] = labels[index + 1]['stop']
+    new_name = labels[index]['name'] + labels[index + 1]['name']
+    labels[index]['name'] = new_name
+    labels.pop(index + 1)
 
-def split(labels, index, split_pt):
-    if not (split_pt > labels[index]['start'] and
-            split_pt < labels[index]['stop']):
+def split(labels, target, new_name, new_sep, new_next_name, **kwargs):
+    if not (new_sep > labels[target['index']]['start'] and
+            new_sep < labels[target['index']]['stop']):
         raise ValueError('split point must be within interval')
+    index = target['index']
     new_point = copy.deepcopy(labels[index])
-    new_point['start'] = split_pt
-    new_point['name'] = ''
-    labels[index]['stop'] = split_pt
+    new_point['start'] = new_sep
+    new_point['name'] = new_next_name
+    labels[index]['stop'] = new_sep
+    labels[index]['name'] = new_name
     labels.insert(index + 1, new_point)
 
-def delete(labels, index):
-    labels.pop(index)
+def delete(labels, target, **kwargs):
+    labels.pop(target['index'])
 
-def create(labels, index, start, stop, name, **kwargs):
-    new_point = {'start': start,
-                 'stop': stop,
-                 'name': name}
-    new_point.update(kwargs)
+def create(labels, target, **kwargs):
+    index = target['index']
+    new_point = {'start': target['start'],
+                 'stop': target['stop'],
+                 'name': target['name']}
+    del target['start'], target['stop'], target['name'], target['index']
+    new_point.update(target)
     labels.insert(index, new_point)
+
+# inverting
+
+INVERSE_TABLE = {'set_name': 'set-name',
+                 'set_boundary': 'set-boundary',
+                 'merge_next': 'split',
+                 'split': 'merge-next',
+                 'delete': 'create',
+                 'create': 'delete'}
+
+def invert(cmd):
+    pass
 
 # parsing stuff
 class Symbol(str): pass
@@ -44,14 +59,15 @@ class Symbol(str): pass
 
 def lc_env():
     env = {}
-    env.update({'set_name': set_name,
+    env.update({'null': [],
+                'set_name': set_name,
                 'set_boundary': set_bd,
-                'merge': merge_adjacent,
+                'merge_next': merge_next,
                 'split': split,
                 'delete': delete,
                 'create': create,
                 'interval': dict,
-                'new_val': dict})
+                'interval_pair': dict})
     return env
 
 

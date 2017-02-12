@@ -10,54 +10,58 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
 
 def test_set_name():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.set_name(labels, 3, 'b')
+    lc.set_name(labels, {'index': 3}, 'b', discard='spam')
     assert labels[3]['name'] == 'b'
 
 def test_set_bd():
     labels = copy.deepcopy(TEST_LABELS)
-    with pytest.raises(IndexError):
-        lc.set_bd(labels, 3, 'foo', 3.4)
+    with pytest.raises(KeyError):
+        lc.set_bd(labels, {'index': 3}, 'foo', 3.4)
     
-    lc.set_bd(labels, 3, 'start', 4.6)
+    lc.set_bd(labels, {'index': 3}, 'start', 4.6, discard='spam')
     assert round(labels[3]['start'], 2) == 4.6
 
-    lc.set_bd(labels, 3, 'stop', 6.4)
+    lc.set_bd(labels, {'index': 3}, 'stop', 6.4)
     assert round(labels[3]['stop'], 2) == 6.4
 
-def test_merge_adjacent():
+def test_merge_next():
     labels = copy.deepcopy(TEST_LABELS)
-    with pytest.raises(ValueError):
-        lc.merge_adjacent(labels, 3, 5)
-    
-    lc.merge_adjacent(labels, 1, 2)
+    lc.merge_next(labels, {'index': 1}, discard='spam')
     assert len(labels) == 3
     assert labels[1]['stop'] == 4.2
-    assert labels[1]['name'] == 'b+c'
+    assert labels[1]['name'] == 'bc'
     assert labels[2]['name'] == 'd'
 
 def test_split():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(ValueError):
-        lc.split(labels, 3, 1.0)
+        lc.split(labels, {'index': 3}, 'd', 1.0, 'e')
     
-    lc.split(labels, 3, 4.8)
+    lc.split(labels, {'index': 3}, 'd', 4.8, 'e')
     assert len(labels) == 5
     assert labels[3]['stop'] == 4.8
     assert labels[3]['name'] == 'd'
     assert labels[4]['start'] == 4.8
     assert labels[4]['stop'] == 5.0
-    assert labels[4]['name'] == ''
+    assert labels[4]['name'] == 'e'
 
 def test_delete():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.delete(labels, 2)
+    lc.delete(labels, {'index': 2})
     assert len(labels) == 3
     assert labels[2]['name'] == 'd'
 
 def test_create():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.create(labels, 2, 3.1, 3.3, 'c2', tier='female')
+    new_interval = {'index': 2,
+                    'start': 3.1,
+                    'stop': 3.3,
+                    'name': 'c2',
+                    'tier': 'female'}
+    lc.create(labels, new_interval)
     assert len(labels) == 5
+    with pytest.raises(KeyError):
+        labels[2]['index']
     assert labels[2]['start'] == 3.1
     assert labels[2]['stop'] == 3.3
     assert labels[2]['name'] == 'c2'
@@ -133,20 +137,39 @@ def test_whole_stack():
     test_env = lc.lc_env()
     test_env.update({'labels': labels})
     
-    cmd = '(set-name #:labels labels #:index 0 #:new-name "b")'
+    cmd = """(set-name #:labels labels
+                       #:target (interval #:index 0 #:name "a")
+                       #:new-name "b")"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
-    cmd = '(set-boundary #:labels labels #:index 1 #:which "start" #:new-bd 2.2)'
+    cmd = """(set-boundary #:labels labels
+                           #:target (interval #:index 1 #:bd 3.141)
+                           #:which "start"
+                           #:new-bd 2.2)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2
     
-    cmd = '(merge #:labels labels #:index1 1 #:index2 2)'
+    cmd = """(merge-next #:labels labels
+                         #:target (interval-pair #:index 1
+                                                 #:name "b"
+                                                 #:sep 3.240
+                                                 #:next-name "silence")
+                         #:new-name null
+                         #:new-sep null
+                         #:new-next-name null)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS) - 1
     assert labels[1]['stop'] == TEST_LABELS[2]['stop']
     
-    cmd = '(split #:labels labels #:index 1 #:split-pt 3.5)'
+    cmd = """(split #:labels labels
+                    #:target (interval-pair #:index 1
+                                            #:name null
+                                            #:sep null
+                                            #:next-name null)
+                    #:new-name "b"
+                    #:new-sep 3.5
+                    #:new-next-name "c")"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS)
     assert labels[1]['stop'] == TEST_LABELS[1]['stop']
