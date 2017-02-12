@@ -98,7 +98,9 @@ def atomize(token):
         try:
             return float(token)
         except ValueError:
-            return Symbol(token.replace('-', '_'))
+            if len(token) > 1:
+                token = token.replace('-', '_')
+            return Symbol(token)
 
 
 def read_from_tokens(token_list):
