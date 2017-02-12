@@ -13,15 +13,15 @@ def test_set_name():
     lc.set_name(labels, 3, 'b')
     assert labels[3]['name'] == 'b'
 
-def test_move_bd():
+def test_set_bd():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(IndexError):
-        lc.move_bd(labels, 3, 'foo', 0.1)
+        lc.set_bd(labels, 3, 'foo', 3.4)
     
-    lc.move_bd(labels, 3, 'start', -0.1)
+    lc.set_bd(labels, 3, 'start', 4.6)
     assert round(labels[3]['start'], 2) == 4.6
 
-    lc.move_bd(labels, 3, 'stop', 1.4)
+    lc.set_bd(labels, 3, 'stop', 6.4)
     assert round(labels[3]['stop'], 2) == 6.4
 
 def test_merge_adjacent():
@@ -137,9 +137,9 @@ def test_whole_stack():
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
-    cmd = '(move-boundary #:labels labels #:index 1 #:which "start" #:delta -0.1)'
+    cmd = '(set-boundary #:labels labels #:index 1 #:which "start" #:new-bd 2.2)'
     lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[1]['start'] == TEST_LABELS[1]['start'] - 0.1
+    assert labels[1]['start'] == 2.2
     
     cmd = '(merge #:labels labels #:index1 1 #:index2 2)'
     lc.evaluate(lc.parse(cmd), test_env)

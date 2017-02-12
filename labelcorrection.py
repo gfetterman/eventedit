@@ -5,10 +5,10 @@ import itertools
 def set_name(labels, index, new_name):
     labels[index]['name'] = new_name
 
-def move_bd(labels, index, which, delta):
+def set_bd(labels, index, which, new_bd):
     if which not in ('start', 'stop'):
         raise IndexError('boundary name not recognized: ' + which)
-    labels[index][which] += delta
+    labels[index][which] = new_bd
 
 def merge_adjacent(labels, index1, index2):
     if index2 != index1 + 1:
@@ -45,7 +45,7 @@ class Symbol(str): pass
 def lc_env():
     env = {}
     env.update({'set_name': set_name,
-                'move_boundary': move_bd,
+                'set_boundary': set_bd,
                 'merge': merge_adjacent,
                 'split': split,
                 'delete': delete,
