@@ -16,9 +16,7 @@ class CorrectionStack:
     
     def undo(self):
         if self.pc >= 0:
-            env = lc_env()
-            env.update({'labels': self.labels})
-            evaluate(parse(invert(self.stack[self.pc])), env)
+            self.apply(invert(self.stack[self.pc]))
             self.pc -= 1
             if self.pc < self.written:
                 self.dirty = True
@@ -27,18 +25,14 @@ class CorrectionStack:
         stacklen = len(self.stack)
         if stacklen > 0 and self.pc < stacklen - 1:
             self.pc += 1
-            env = lc_env()
-            env.update({'labels': self.labels})
-            evaluate(parse(self.stack[self.pc]), env)
+            self.apply(self.stack[self.pc])
     
     def push(self, cmd):
         if self.pc >= 0 and self.pc < len(self.stack) - 1:
             self.stack = self.stack[:(self.pc + 1)]
         self.stack.append(cmd)
         self.pc += 1
-        env = lc_env()
-        env.update({'labels': self.labels})
-        evaluate(parse(cmd), env)
+        self.apply(cmd)
     
     def pop(self):
         self.undo()
@@ -49,6 +43,11 @@ class CorrectionStack:
             return self.stack[self.pc]
         else
             return None
+    
+    def apply(self, cmd):
+        env = lc_env()
+        env.update({'labels': self.labels})
+        evaluate(parse(cmd), env)
 
 # raw operations
 
