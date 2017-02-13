@@ -8,36 +8,36 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
 
-def test_set_name():
+def test__set_name():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.set_name(labels, {'index': 3}, 'b', discard='spam')
+    lc._set_name(labels, {'index': 3}, 'b', discard='spam')
     assert labels[3]['name'] == 'b'
 
-def test_set_bd():
+def test__set_bd():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(KeyError):
-        lc.set_bd(labels, {'index': 3}, 'foo', 3.4)
+        lc._set_bd(labels, {'index': 3}, 'foo', 3.4)
     
-    lc.set_bd(labels, {'index': 3}, 'start', 4.6, discard='spam')
+    lc._set_bd(labels, {'index': 3}, 'start', 4.6, discard='spam')
     assert round(labels[3]['start'], 2) == 4.6
 
-    lc.set_bd(labels, {'index': 3}, 'stop', 6.4)
+    lc._set_bd(labels, {'index': 3}, 'stop', 6.4)
     assert round(labels[3]['stop'], 2) == 6.4
 
-def test_merge_next():
+def test__merge_next():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.merge_next(labels, {'index': 1}, discard='spam')
+    lc._merge_next(labels, {'index': 1}, discard='spam')
     assert len(labels) == 3
     assert labels[1]['stop'] == 4.2
     assert labels[1]['name'] == 'bc'
     assert labels[2]['name'] == 'd'
 
-def test_split():
+def test__split():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(ValueError):
-        lc.split(labels, {'index': 3}, 'd', 1.0, 'e')
+        lc._split(labels, {'index': 3}, 'd', 1.0, 'e')
     
-    lc.split(labels, {'index': 3}, 'd', 4.8, 'e')
+    lc._split(labels, {'index': 3}, 'd', 4.8, 'e')
     assert len(labels) == 5
     assert labels[3]['stop'] == 4.8
     assert labels[3]['name'] == 'd'
@@ -45,20 +45,20 @@ def test_split():
     assert labels[4]['stop'] == 5.0
     assert labels[4]['name'] == 'e'
 
-def test_delete():
+def test__delete():
     labels = copy.deepcopy(TEST_LABELS)
-    lc.delete(labels, {'index': 2})
+    lc._delete(labels, {'index': 2})
     assert len(labels) == 3
     assert labels[2]['name'] == 'd'
 
-def test_create():
+def test__create():
     labels = copy.deepcopy(TEST_LABELS)
     new_interval = {'index': 2,
                     'start': 3.1,
                     'stop': 3.3,
                     'name': 'c2',
                     'tier': 'female'}
-    lc.create(labels, new_interval)
+    lc._create(labels, new_interval)
     assert len(labels) == 5
     with pytest.raises(KeyError):
         labels[2]['index']
@@ -118,7 +118,9 @@ def test_evaluate():
     assert lc.evaluate(1.5, test_env) == 1.5
     
     expr = [lc.Symbol('simple_proc'),
-            '#:start', 1.5, '#:stop', 2.0, '#:name', 'a']
+            lc.KeyArg('start'), 1.5,
+            lc.KeyArg('stop'), 2.0,
+            lc.KeyArg('name'), 'a']
     result = lc.evaluate(expr, test_env)
     assert isinstance(result, dict)
     assert result['start'] == 1.5
