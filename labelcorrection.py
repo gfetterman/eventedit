@@ -4,15 +4,35 @@ import numbers
 import tempfile
 
 class CorrectionStack:
-    def __init__(self):
-        self.labels = []
-        self.stack = []
-        self.pc = -1
-        self.written = -1
-        self.dirty = True
-        self.file = tempfile.NamedTemporaryFile(mode='w',
-                                                suffix='.corr',
-                                                delete=False)
+    def __init__(self, labels, apply=False, corr_file=None, dir=None):
+        self.labels = labels
+        if corr_file is None:
+            temp_file = tempfile.NamedTemporaryFile(mode='w',
+                                                    suffix='.corr',
+                                                    dir=dir,
+                                                    delete=False)
+            temp_file.close()
+            self.file = temp_file.name
+            self.stack = []
+            self.pc = -1
+            self.written = -1
+            self.dirty = True
+        else:
+            self.file = corr_file
+            self.stack = self.read_from_file(corr_file)
+            if apply:
+                if len(self.stack) > 0:
+                    self.pc = 0
+                    self.written = len(self.stack) - 1
+                else:
+                    self.pc = -1
+                    self.written = -1
+                self.dirty = False
+                self.apply_stack()
+            else:
+                self.pc = len(self.stack) - 1
+                self.written = self.pc
+                self.dirty = False
     
     def undo(self):
         if self.pc >= 0:
