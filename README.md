@@ -3,7 +3,7 @@
 Minilanguage for documenting human corrections to automated vocalization
 labels.
 
-Designed to work with Bark-formatted data.
+Designed to work with [Bark](https://github.com/kylerbrown/bark)-formatted data.
 
 ## Minilanguage specification
 
@@ -14,6 +14,7 @@ The language describes a limited set of operations on interval labels:
 3. Merge two consecutive intervals
 4. Split an interval in two
 5. Delete an interval
+6. Create a new interval
 
 ## Minilanguage implementation and representation
 
