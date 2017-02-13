@@ -2,6 +2,8 @@ import copy
 import itertools
 import numbers
 import tempfile
+import codecs
+import yaml
 
 class CorrectionStack:
     def __init__(self, labels, apply=False, corr_file=None, dir=None):
@@ -19,7 +21,7 @@ class CorrectionStack:
             self.dirty = True
         else:
             self.corr_file = corr_file
-            self.stack = self.read_from_file(corr_file)
+            self.stack = self.read_from_file()
             if apply:
                 if len(self.stack) > 0:
                     self.pc = 0
