@@ -15,8 +15,7 @@ def _set_bd(labels, target, which, new_bd, **kwargs):
 def _merge_next(labels, target, **kwargs):
     index = target['index']
     labels[index]['stop'] = labels[index + 1]['stop']
-    new_name = labels[index]['name'] + labels[index + 1]['name']
-    labels[index]['name'] = new_name
+    labels[index]['name'] = kwargs['new_name']
     labels.pop(index + 1)
 
 def _split(labels, target, new_name, new_sep, new_next_name, **kwargs):
@@ -48,6 +47,8 @@ def _create(labels, target, **kwargs):
 
 def _gen_code(op, target_name, target, other_args):
     ntl = [Symbol(op)]
+    ntl.append(KeyArg('labels'))
+    ntl.append(Symbol('labels'))
     ntl.append(KeyArg('target'))
     ntl.append([Symbol(target_name)])
     for k, a in target.items():
@@ -67,7 +68,7 @@ def cg_set_name(labels, index, new_name):
     return _gen_code(op, target_name, target, other_args)
 
 def cg_set_start(labels, index, new_start):
-    op = 'set_bd'
+    op = 'set_boundary'
     target_name = 'interval'
     target = {'index': index,
               'bd': labels[index]['start']}
@@ -75,7 +76,7 @@ def cg_set_start(labels, index, new_start):
     return _gen_code(op, target_name, target, other_args)
 
 def cg_set_stop(labels, index, new_stop):
-    op = 'set_bd'
+    op = 'set_boundary'
     target_name = 'interval'
     target = {'index': index,
               'bd': labels[index]['stop']}
@@ -89,18 +90,24 @@ def cg_merge_next(labels, index, new_name=None):
               'name': labels[index]['name'],
               'sep': labels[index]['stop'],
               'next_name': labels[index + 1]['name']}
+    if new_name is None:
+        new_name = target['name'] + target['next_name']
     other_args = {'new_name': new_name,
                   'new_sep': None,
                   'new_next_name': None}
     return _gen_code(op, target_name, target, other_args)
 
-def cg_split(labels, index, new_name, new_sep, new_next_name):
+def cg_split(labels, index, new_sep, new_name=None, new_next_name=None):
     op = 'split'
     target_name = 'interval_pair'
     target = {'index': index,
               'name': labels[index]['name'],
               'sep': None,
               'next_name': None}
+    if new_name is None:
+        new_name = target['name']
+    if new_next_name is None:
+        new_next_name = ''
     other_args = {'new_name': new_name,
                   'new_sep': new_sep,
                   'new_next_name': new_next_name}
@@ -222,12 +229,10 @@ def tokenize(command):
             if len(token) > 1:
                 third_pass.append(token[1:])
         elif token[-1] == ')':
-            temp = []
-            while len(token) > 0 and token[-1] == ')':
-                token = token[:-1]
-                temp.insert(0, ')')
-            temp.insert(0, token)
-            third_pass.extend(temp)
+            ct = token.count(')')
+            third_pass.append(token[:-ct])
+            for _ in range(ct):
+                third_pass.append(')')
         else:
             third_pass.append(token)
     return third_pass

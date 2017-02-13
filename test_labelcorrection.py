@@ -28,10 +28,10 @@ def test__set_bd():
 
 def test__merge_next():
     labels = copy.deepcopy(TEST_LABELS)
-    lc._merge_next(labels, {'index': 1}, discard='spam')
+    lc._merge_next(labels, {'index': 1}, discard='spam', new_name='q')
     assert len(labels) == 3
     assert labels[1]['stop'] == 4.2
-    assert labels[1]['name'] == 'bc'
+    assert labels[1]['name'] == 'q'
     assert labels[2]['name'] == 'd'
 
 def test__split():
@@ -239,3 +239,94 @@ def test_invert():
     assert cmd == ident
 
 # test code generators
+
+def test_cg_set_name():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_set_name(labels, 0, 'q')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['name'] == 'q'
+
+def test_cg_set_start():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_set_start(labels, 0, 1.6)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['start'] == 1.6
+
+def test_cg_set_stop():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_set_stop(labels, 0, 1.8)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['stop'] == 1.8
+
+def test_cg_merge_next():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_merge_next(labels, 0, new_name='q')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 3
+    assert labels[0]['start'] == 1.0
+    assert labels[0]['stop'] == 3.5
+    assert labels [0]['name'] == 'q'
+    
+    cmd = lc.cg_merge_next(labels, 0)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 2
+    assert labels[0]['name'] == 'qc'
+
+def test_cg_split():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_split(labels, 0, 1.8, 'a1', 'a2')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 5
+    assert labels[0]['start'] == 1.0
+    assert labels[0]['stop'] == 1.8
+    assert labels[0]['name'] == 'a1'
+    assert labels[1]['start'] == 1.8
+    assert labels[1]['stop'] == 2.1
+    assert labels[1]['name'] == 'a2'
+    
+    cmd = lc.cg_split(labels, 0, 1.5)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 6
+    assert labels[0]['name'] == 'a1'
+    assert labels[1]['name'] == ''
+
+def test_cg_delete():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_delete(labels, 0)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 3
+    assert labels[0]['start'] == 2.1
+    assert labels[0]['stop'] == 3.5
+    assert labels[0]['name'] == 'b'
+
+def test_cg_create():
+    labels = copy.deepcopy(TEST_LABELS)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = lc.cg_create(labels, 0, 0.5, stop=0.9, name='q', tier='spam')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 5
+    assert labels[0]['start'] == 0.5
+    assert labels[0]['stop'] == 0.9
+    assert labels[0]['name'] == 'q'
+    assert labels[0]['tier'] == 'spam'
+    assert labels[1] == TEST_LABELS[0]
