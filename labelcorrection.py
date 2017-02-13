@@ -12,13 +12,13 @@ class CorrectionStack:
                                                     dir=dir,
                                                     delete=False)
             temp_file.close()
-            self.file = temp_file.name
+            self.corr_file = temp_file.name
             self.stack = []
             self.pc = -1
             self.written = -1
             self.dirty = True
         else:
-            self.file = corr_file
+            self.corr_file = corr_file
             self.stack = self.read_from_file(corr_file)
             if apply:
                 if len(self.stack) > 0:
@@ -33,6 +33,26 @@ class CorrectionStack:
                 self.pc = len(self.stack) - 1
                 self.written = self.pc
                 self.dirty = False
+    
+    def read_from_file(self, file=None):
+        if file is None:
+            file = self.corr_file
+        with codecs.open(file, 'r', encoding='utf-8') as fp:
+            file_data = yaml.safe_load(fp)
+            self.uuid = file_data['uuid']
+            self.stack = file_data['operations']
+            self.label_file = file_data['label_file']
+    
+    def write_to_file(self, file=None):
+        if file is None:
+            file = self.corr_file
+        with codecs.open(file, 'w', encoding='utf-8') as fp:
+            file_data = {'uuid': self.uuid,
+                         'label_file': self.label_file,
+                         'operations': self.stack[:self.pc]}
+            header = """# corrections file using YAML syntax\n---\n"""
+            fp.write(header)
+            fp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
         if self.pc >= 0:
