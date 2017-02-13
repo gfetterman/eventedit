@@ -8,6 +8,8 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
 
+# test raw label correction operations
+
 def test__set_name():
     labels = copy.deepcopy(TEST_LABELS)
     lc._set_name(labels, {'index': 3}, 'b', discard='spam')
@@ -67,6 +69,8 @@ def test__create():
     assert labels[2]['name'] == 'c2'
     assert labels[2]['tier'] == 'female'
     assert labels[3]['name'] == 'c'
+
+# test parser functions
 
 def test_tokenize():
     tkns = lc.tokenize(TEST_COMMAND)
@@ -175,3 +179,63 @@ def test_whole_stack():
     lc.evaluate(lc.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS)
     assert labels[1]['stop'] == TEST_LABELS[1]['stop']
+
+# test inverse parser operations and inverse generator
+
+def test_deatomize():
+    assert lc.deatomize(None) == 'null'
+    
+    assert lc.deatomize(lc.KeyArg('name')) == '#:name'
+    
+    assert lc.deatomize(lc.Symbol('split')) == 'split'
+    assert lc.deatomize(lc.Symbol('merge_next')) == 'merge-next'
+    assert lc.deatomize(lc.Symbol('_')) == '_'
+    
+    assert lc.deatomize('b') == '"b"'
+    
+    assert lc.deatomize(1.5) == '1.5'
+    
+    with pytest.raises(ValueError):
+        lc.deatomize(ValueError)
+
+def test_detokenize():
+    token_list = ['(', 'merge-next', '#:target', '(',
+                  'interval-pair', '#:index', '0', '#:name', 'null',
+                   '#:sep', 'null', '#:next-name', 'null', ')',
+                  '#:new-name', '"b"', '#:new-sep', '1.5',
+                  '#:new-next-name', '"c"', ')']
+    cmd = lc.detokenize(token_list)
+    assert isinstance(cmd, str)
+    assert cmd[0] == '('
+    assert cmd[-1] == ')'
+    assert cmd[12:20] == '#:target'
+    ident = lc.tokenize(cmd)
+    assert token_list == ident
+
+def test_write_to_tokens():
+    expr = [lc.Symbol('merge_next'), lc.KeyArg('target'),
+            [lc.Symbol('interval_pair'), lc.KeyArg('index'), 0,
+             lc.KeyArg('name'), None, lc.KeyArg('sep'), None,
+             lc.KeyArg('next_name'), None],
+            lc.KeyArg('new_name'), "b", lc.KeyArg('new_sep'), 1.5,
+            lc.KeyArg('new_next_name'), "c"]
+    token_list = lc.write_to_tokens(expr)
+    assert token_list[0] == '('
+    assert token_list[-1] == ')'
+    assert token_list[3] == '('
+    assert token_list[13] == ')'
+    assert token_list[-3] == '#:new-next-name'
+    assert token_list[-2] == '"c"'
+    ident = lc.read_from_tokens(token_list)
+    assert expr == ident
+
+def test_invert():
+    cmd = '(merge-next #:target (interval-pair #:index 0 #:name null #:sep null #:next-name null) #:new-name "b" #:new-sep 1.5 #:new-next-name "c")'
+    hand_inv = '(split #:target (interval-pair #:index 0 #:name "b" #:sep 1.5 #:next-name "c") #:new-name null #:new-sep null #:new-next-name null)'
+    inv = lc.invert(cmd)
+    assert inv == hand_inv
+    
+    ident = lc.invert(lc.invert(cmd))
+    assert cmd == ident
+
+# test code generators

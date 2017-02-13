@@ -139,7 +139,7 @@ def invert(cmd):
     target = ntl[ntl.index('target') + 1]
     for i in range(len(ntl)):
         curr = ntl[i]
-        if len(curr) >= 4 and curr[:4] == 'new_':
+        if isinstance(curr, KeyArg) and len(curr) >= 4 and curr[:4] == 'new_':
             oldname = curr[4:]
             oldval = copy.deepcopy(target[target.index(oldname) + 1])
             target[target.index(oldname) + 1] = copy.deepcopy(ntl[i + 1])
@@ -174,17 +174,17 @@ def deatomize(a):
     if a is None:
         return 'null'
     elif isinstance(a, KeyArg):
-        return '#:' + a
+        if len(a) > 1:
+            return '#:' + a[0] + a[1:].replace('_', '-')
+        else:
+            return '#:' + a
     elif isinstance(a, Symbol):
         if len(a) > 1:
             return a[0] + a[1:].replace('_', '-')
         else:
             return a
     elif isinstance(a, str):
-        if len(a) > 2 and a[:2] == '#:':
-            return a
-        else:
-            return '"' + a + '"'
+        return '"' + a + '"'
     elif isinstance(a, numbers.Number):
         return str(a)
     else:
@@ -236,6 +236,8 @@ def tokenize(command):
 def atomize(token):
     if token[0] == '"':
         return token[1:-1].decode('string_escape')
+    if token == 'null':
+        return None
     try:
         return int(token)
     except ValueError:
@@ -271,8 +273,7 @@ def parse(command):
 
 def lc_env():
     env = {}
-    env.update({'null': None,
-                'set_name': _set_name,
+    env.update({'set_name': _set_name,
                 'set_boundary': _set_bd,
                 'merge_next': _merge_next,
                 'split': _split,
