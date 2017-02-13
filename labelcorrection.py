@@ -68,6 +68,11 @@ class CorrectionStack:
         env = lc_env()
         env.update({'labels': self.labels})
         evaluate(parse(cmd), env)
+    
+    def apply_stack(self):
+        if self.pc >= 0:
+            while self.pc < len(self.stack) - 1:
+                self.redo()
 
 # raw operations
 
