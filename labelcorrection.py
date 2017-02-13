@@ -1,5 +1,6 @@
 import copy
 import itertools
+import numbers
 
 # raw operations
 def set_name(labels, target, new_name, **kwargs):
@@ -41,35 +42,78 @@ def create(labels, target, **kwargs):
     new_point.update(target)
     labels.insert(index, new_point)
 
-# inverting
+# invert operations
 
-INVERSE_TABLE = {'set_name': 'set-name',
-                 'set_boundary': 'set-boundary',
+INVERSE_TABLE = {'set_name': 'set_name',
+                 'set_boundary': 'set_boundary',
                  'merge_next': 'split',
-                 'split': 'merge-next',
+                 'split': 'merge_next',
                  'delete': 'create',
                  'create': 'delete'}
 
 def invert(cmd):
-    pass
+    ntl = parse(cmd)
+    op = ntl[0]
+    inverse = INVERSE_TABLE[op]
+    target = ntl[ntl.index('target') + 1]
+    for i in range(len(ntl)):
+        curr = ntl[i]
+        if len(curr) >= 4 and curr[:4] == 'new_':
+            oldname = curr[4:]
+            oldval = copy.deepcopy(target[target.index(oldname) + 1])
+            target[target.index(oldname) + 1] = copy.deepcopy(ntl[i + 1])
+            ntl[i + 1] = oldval
+    inverse_ntl = [Symbol(inverse)]
+    inverse_ntl.extend(ntl[1:])
+    return detokenize(write_to_tokens(inverse_ntl))
 
-# parsing stuff
+# reverse parsing
+
+def detokenize(token_list):
+    cmd = ''
+    cmd += token_list[0]
+    for t in token_list[1:]:
+        if t != ')' and cmd[-1] != '(':
+            cmd += ' '
+        cmd += t
+    return cmd
+
+def write_to_tokens(ntl):
+    token_list = []
+    token_list.append('(')
+    for t in ntl:
+        if isinstance(t, list):
+            token_list.extend(write_to_tokens(t))
+        else:
+            token_list.append(deatomize(t))
+    token_list.append(')')
+    return token_list
+
+def deatomize(a):
+    if a is None:
+        return 'null'
+    elif isinstance(a, KeyArg):
+        return '#:' + a
+    elif isinstance(a, Symbol):
+        if len(a) > 1:
+            return a[0] + a[1:].replace('_', '-')
+        else:
+            return a
+    elif isinstance(a, str):
+        if len(a) > 2 and a[:2] == '#:':
+            return a
+        else:
+            return '"' + a + '"'
+    elif isinstance(a, numbers.Number):
+        return str(a)
+    else:
+        raise ValueError('unknown atomic type: ' + str(a))
+
+# parser & evaluator
+
 class Symbol(str): pass
 
-
-def lc_env():
-    env = {}
-    env.update({'null': [],
-                'set_name': set_name,
-                'set_boundary': set_bd,
-                'merge_next': merge_next,
-                'split': split,
-                'delete': delete,
-                'create': create,
-                'interval': dict,
-                'interval_pair': dict})
-    return env
-
+class KeyArg(Symbol): pass
 
 def tokenize(command):
     first_pass = command.split()
@@ -97,9 +141,12 @@ def tokenize(command):
             if len(token) > 1:
                 third_pass.append(token[1:])
         elif token[-1] == ')':
-            if len(token) > 1:
-                third_pass.append(token[:-1])
-            third_pass.append(')')
+            temp = []
+            while len(token) > 0 and token[-1] == ')':
+                token = token[:-1]
+                temp.insert(0, ')')
+            temp.insert(0, token)
+            third_pass.extend(temp)
         else:
             third_pass.append(token)
     return third_pass
@@ -116,6 +163,8 @@ def atomize(token):
         except ValueError:
             if len(token) > 1:
                 token = token.replace('-', '_')
+            if len(token) > 2 and token[:2] == '#:':
+                return KeyArg(token[2:])
             return Symbol(token)
 
 
@@ -139,6 +188,20 @@ def parse(command):
     return read_from_tokens(tokenize(command))
 
 
+def lc_env():
+    env = {}
+    env.update({'null': None,
+                'set_name': set_name,
+                'set_boundary': set_bd,
+                'merge_next': merge_next,
+                'split': split,
+                'delete': delete,
+                'create': create,
+                'interval': dict,
+                'interval_pair': dict})
+    return env
+
+
 def evaluate(expr, env=lc_env()):
     if isinstance(expr, Symbol):
         return env[expr]
@@ -146,11 +209,13 @@ def evaluate(expr, env=lc_env()):
         return expr
     else:
         proc = evaluate(expr[0], env)
-        kwargs = {p[0][2:]: evaluate(p[1], env) for p in _grouper(expr[1:], 2)}
+        kwargs = {p[0]: evaluate(p[1], env) for p in _grouper(expr[1:], 2)}
         return proc(**kwargs)
 
 
 def _grouper(iterable, n):
-    """Returns nonoverlapping windows of input of length n."""
+    """Returns nonoverlapping windows of input of length n.
+    
+       Copied from itertools recipe suggestions."""
     args = [iter(iterable)] * n
     return itertools.izip_longest(*args)
