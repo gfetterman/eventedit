@@ -1,6 +1,54 @@
 import copy
 import itertools
 import numbers
+import tempfile
+
+class CorrectionStack:
+    def __init__(self):
+        self.labels = []
+        self.stack = []
+        self.pc = -1
+        self.written = -1
+        self.dirty = True
+        self.file = tempfile.NamedTemporaryFile(mode='w',
+                                                suffix='.corr',
+                                                delete=False)
+    
+    def undo(self):
+        if self.pc >= 0:
+            env = lc_env()
+            env.update({'labels': self.labels})
+            evaluate(parse(invert(self.stack[self.pc])), env)
+            self.pc -= 1
+            if self.pc < self.written:
+                self.dirty = True
+    
+    def redo(self):
+        stacklen = len(self.stack)
+        if stacklen > 0 and self.pc < stacklen - 1:
+            self.pc += 1
+            env = lc_env()
+            env.update({'labels': self.labels})
+            evaluate(parse(self.stack[self.pc]), env)
+    
+    def push(self, cmd):
+        if self.pc >= 0 and self.pc < len(self.stack) - 1:
+            self.stack = self.stack[:(self.pc + 1)]
+        self.stack.append(cmd)
+        self.pc += 1
+        env = lc_env()
+        env.update({'labels': self.labels})
+        evaluate(parse(cmd), env)
+    
+    def pop(self):
+        self.undo()
+        return self.peek(self.pc + 1)
+    
+    def peek(self, index=self.pc):
+        if index < len(self.stack) and index >= 0:
+            return self.stack[self.pc]
+        else
+            return None
 
 # raw operations
 
