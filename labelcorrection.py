@@ -3,22 +3,23 @@ import itertools
 import numbers
 
 # raw operations
-def set_name(labels, target, new_name, **kwargs):
+
+def _set_name(labels, target, new_name, **kwargs):
     labels[target['index']]['name'] = new_name
 
-def set_bd(labels, target, which, new_bd, **kwargs):
+def _set_bd(labels, target, which, new_bd, **kwargs):
     if which not in ('start', 'stop'):
         raise KeyError('boundary name not recognized: ' + which)
     labels[target['index']][which] = new_bd
 
-def merge_next(labels, target, **kwargs):
+def _merge_next(labels, target, **kwargs):
     index = target['index']
     labels[index]['stop'] = labels[index + 1]['stop']
     new_name = labels[index]['name'] + labels[index + 1]['name']
     labels[index]['name'] = new_name
     labels.pop(index + 1)
 
-def split(labels, target, new_name, new_sep, new_next_name, **kwargs):
+def _split(labels, target, new_name, new_sep, new_next_name, **kwargs):
     if not (new_sep > labels[target['index']]['start'] and
             new_sep < labels[target['index']]['stop']):
         raise ValueError('split point must be within interval')
@@ -30,10 +31,10 @@ def split(labels, target, new_name, new_sep, new_next_name, **kwargs):
     labels[index]['name'] = new_name
     labels.insert(index + 1, new_point)
 
-def delete(labels, target, **kwargs):
+def _delete(labels, target, **kwargs):
     labels.pop(target['index'])
 
-def create(labels, target, **kwargs):
+def _create(labels, target, **kwargs):
     index = target['index']
     new_point = {'start': target['start'],
                  'stop': target['stop'],
@@ -41,6 +42,86 @@ def create(labels, target, **kwargs):
     del target['start'], target['stop'], target['name'], target['index']
     new_point.update(target)
     labels.insert(index, new_point)
+
+
+# code-generators
+
+def _gen_code(op, target_name, target, other_args):
+    ntl = [Symbol(op)]
+    ntl.append(KeyArg('target'))
+    ntl.append([Symbol(target_name)])
+    for k, a in target.items():
+        ntl[-1].append(KeyArg(k))
+        ntl[-1].append(a)
+    for k, a in other_args.items():
+        ntl.append(KeyArg(k))
+        ntl.append(a)
+    return detokenize(write_to_tokens(ntl))
+
+def cg_set_name(labels, index, new_name):
+    op = 'set_name'
+    target_name = 'interval'
+    target = {'index': index,
+              'name': labels[index]['name']}
+    other_args = {'new_name': new_name}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_set_start(labels, index, new_start):
+    op = 'set_bd'
+    target_name = 'interval'
+    target = {'index': index,
+              'bd': labels[index]['start']}
+    other_args = {'which': 'start', 'new_bd': new_start}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_set_stop(labels, index, new_stop):
+    op = 'set_bd'
+    target_name = 'interval'
+    target = {'index': index,
+              'bd': labels[index]['stop']}
+    other_args = {'which': 'stop', 'new_bd': new_stop}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_merge_next(labels, index, new_name=None):
+    op = 'merge_next'
+    target_name = 'interval_pair'
+    target = {'index': index,
+              'name': labels[index]['name'],
+              'sep': labels[index]['stop'],
+              'next_name': labels[index + 1]['name']}
+    other_args = {'new_name': new_name,
+                  'new_sep': None,
+                  'new_next_name': None}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_split(labels, index, new_name, new_sep, new_next_name):
+    op = 'split'
+    target_name = 'interval_pair'
+    target = {'index': index,
+              'name': labels[index]['name'],
+              'sep': None,
+              'next_name': None}
+    other_args = {'new_name': new_name,
+                  'new_sep': new_sep,
+                  'new_next_name': new_next_name}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_delete(labels, index):
+    op = 'delete'
+    target_name = 'interval'
+    target = {'index': index}
+    target.update(labels[index])
+    other_args = {}
+    return _gen_code(op, target_name, target, other_args)
+
+def cg_create(labels, index, start, **kwargs):
+    op = 'create'
+    target_name = 'interval'
+    target = {'index': index,
+              'start': start}
+    target.update(kwargs)
+    other_args = {}
+    return _gen_code(op, target_name, target, other_args)
 
 # invert operations
 
@@ -191,12 +272,12 @@ def parse(command):
 def lc_env():
     env = {}
     env.update({'null': None,
-                'set_name': set_name,
-                'set_boundary': set_bd,
-                'merge_next': merge_next,
-                'split': split,
-                'delete': delete,
-                'create': create,
+                'set_name': _set_name,
+                'set_boundary': _set_bd,
+                'merge_next': _merge_next,
+                'split': _split,
+                'delete': _delete,
+                'create': _create,
                 'interval': dict,
                 'interval_pair': dict})
     return env
