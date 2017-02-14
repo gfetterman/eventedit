@@ -9,6 +9,14 @@ import uuid
 class CorrectionStack:
     def __init__(self, labels, label_file=None, apply=False,
                  corr_file=None, dir=None, no_file=False):
+        """Creates a CorrectionStack.
+        
+           labels -- a list of dicts denoted event data
+           label_file -- filename string
+           apply -- bool; if True corrections in corr_file are applied
+           corr_file -- filename string; if None, a tempfile is made
+           dir -- directory in which to create tempfile
+           no_file -- bool; if True, no file is created or used"""
         self.labels = labels
         if corr_file is None:
             if no_file:
@@ -32,6 +40,10 @@ class CorrectionStack:
                 self.redo_all()
     
     def read_from_file(self, file=None, already_applied=True):
+        """Read a stack of corrections plus metadata from file.
+           
+           file -- if not present, use self.file
+           already_applied -- bool; if False, apply loaded corrections"""
         if file is None:
             file = self.corr_file
         with codecs.open(file, 'r', encoding='utf-8') as fp:
@@ -48,6 +60,9 @@ class CorrectionStack:
             self.pc = -1
     
     def write_to_file(self, file=None):
+        """Write stack of corrections plus metadata to file.
+           
+           file -- if not present, use self.file"""
         if file is None:
             file = self.corr_file
         with codecs.open(file, 'w', encoding='utf-8') as fp:
@@ -59,6 +74,10 @@ class CorrectionStack:
             fp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
+        """Undoes last applied correction.
+           
+           No effect if pc is at bottom of stack.
+           If dipping below written pointer, set dirty flag."""
         if self.pc >= 0:
             self._apply(invert(self.stack[self.pc]))
             self.pc -= 1
@@ -66,12 +85,20 @@ class CorrectionStack:
                 self.dirty = True
     
     def redo(self):
+        """Redoes next undone correction.
+           
+           No effect if pc is at top of stack."""
         stacklen = len(self.stack)
         if stacklen > 0 and self.pc < stacklen - 1:
             self.pc += 1
             self._apply(self.stack[self.pc])
     
     def push(self, cmd):
+        """Add command to top of stack and execute it.
+           
+           cmd -- Racket command string
+           
+           If pc isn't at top of stack, discards entire stack above it."""
         if self.pc >= 0 and self.pc < len(self.stack) - 1:
             self.stack = self.stack[:(self.pc + 1)]
         self.stack.append(cmd)
@@ -79,6 +106,9 @@ class CorrectionStack:
         self._apply(cmd)
     
     def peek(self, index=None):
+        """Returns Racket command string at top of stack, or index.
+           
+           index -- if outside stack, return None"""
         if index is None:
             index = self.pc
         if index < len(self.stack) and index >= 0:
@@ -87,17 +117,27 @@ class CorrectionStack:
             return None
     
     def _apply(self, cmd):
+        """Executes cmd, applied to labels.
+        
+           cmd -- Racket command string"""
         env = lc_env()
         env.update({'labels': self.labels})
         evaluate(parse(cmd), env)
     
     def redo_all(self):
+        """Executes all commands above pc in stack."""
         while self.pc < len(self.stack) - 1:
             self.redo()
     
     # code generators
     
     def _gen_code(self, op, target_name, target, other_args):
+        """Generates a command string for the given op.
+           
+           op -- string
+           target_name -- string
+           target -- dict
+           other_args -- dict"""
         ntl = [Symbol(op)]
         ntl.append(KeyArg('labels'))
         ntl.append(Symbol('labels'))
@@ -112,6 +152,10 @@ class CorrectionStack:
         return detokenize(write_to_tokens(ntl))
 
     def rename(self, index, new_name):
+        """Generates command string to rename an interval.
+           
+           index -- integer
+           new_name -- string"""
         op = 'set_name'
         target_name = 'interval'
         target = {'index': index,
@@ -120,6 +164,10 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def set_start(self, index, new_start):
+        """Generates command string to move an interval's start.
+           
+           index -- integer
+           new_start -- number"""
         op = 'set_boundary'
         target_name = 'interval'
         target = {'index': index,
@@ -128,6 +176,10 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def set_stop(self, index, new_stop):
+        """Generates command string to move an interval's stop.
+           
+           index -- integer
+           new_stop -- number"""
         op = 'set_boundary'
         target_name = 'interval'
         target = {'index': index,
@@ -136,6 +188,11 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def merge_next(self, index, new_name=None):
+        """Generates command string to merge an interval and its successor.
+           
+           index -- integer
+           new_name -- string; if absent, new interval name is concatenation
+                       of two parents' names"""
         op = 'merge_next'
         target_name = 'interval_pair'
         target = {'index': index,
@@ -150,6 +207,11 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def split(self, index, new_sep, new_name=None, new_next_name=None):
+        """Generates command string to split an interval in two.
+           
+           index -- integer
+           new_sep -- number; must be within interval's limits
+           new_name -- string; if absent"""
         op = 'split'
         target_name = 'interval_pair'
         target = {'index': index,
@@ -166,6 +228,9 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def delete(self, index):
+        """Generates command string to delete an interval.
+           
+           index -- integer"""
         op = 'delete'
         target_name = 'interval'
         target = {'index': index}
@@ -174,6 +239,11 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def create(self, index, start, **kwargs):
+        """Generates command string to create a new interval.
+           
+           index -- integer
+           start -- number
+           kwargs -- any other column values the interval possesses"""
         op = 'create'
         target_name = 'interval'
         target = {'index': index,
@@ -223,10 +293,6 @@ def _create(labels, target, **kwargs):
     new_point.update(target)
     labels.insert(index, new_point)
 
-
-# code-generators
-
-
 # invert operations
 
 INVERSE_TABLE = {'set_name': 'set_name',
@@ -237,6 +303,9 @@ INVERSE_TABLE = {'set_name': 'set_name',
                  'create': 'delete'}
 
 def invert(cmd):
+    """Generates a command string for the inverse of cmd.
+    
+       cmd -- command string"""
     ntl = parse(cmd)
     op = ntl[0]
     inverse = INVERSE_TABLE[op]
@@ -255,6 +324,7 @@ def invert(cmd):
 # reverse parsing
 
 def detokenize(token_list):
+    """Turns a flat list of tokens into a command."""
     cmd = ''
     cmd += token_list[0]
     for t in token_list[1:]:
@@ -264,6 +334,7 @@ def detokenize(token_list):
     return cmd
 
 def write_to_tokens(ntl):
+    """Turns an s-expression into a flat token list."""
     token_list = []
     token_list.append('(')
     for t in ntl:
@@ -275,6 +346,7 @@ def write_to_tokens(ntl):
     return token_list
 
 def deatomize(a):
+    """Turns an atom into a token."""
     if a is None:
         return 'null'
     elif isinstance(a, KeyArg):
@@ -301,6 +373,7 @@ class Symbol(str): pass
 class KeyArg(Symbol): pass
 
 def tokenize(command):
+    """Turns a command string into a flat token list."""
     first_pass = command.split()
     second_pass = []
     in_string = False
@@ -336,6 +409,7 @@ def tokenize(command):
 
 
 def atomize(token):
+    """Turns a token into an atom."""
     if token[0] == '"':
         return token[1:-1].decode('string_escape')
     if token == 'null':
@@ -354,6 +428,7 @@ def atomize(token):
 
 
 def read_from_tokens(token_list):
+    """Turns a flat token list into an s-expression."""
     if len(token_list) == 0:
         raise SyntaxError('unexpected EOF')
     token = token_list.pop(0)
@@ -370,10 +445,12 @@ def read_from_tokens(token_list):
 
 
 def parse(command):
+    """Turns a command string into an s-expression."""
     return read_from_tokens(tokenize(command))
 
 
 def lc_env():
+    """Returns the default environment for s-expression evaluation."""
     env = {}
     env.update({'set_name': _set_name,
                 'set_boundary': _set_bd,
@@ -387,6 +464,7 @@ def lc_env():
 
 
 def evaluate(expr, env=lc_env()):
+    """Evaluates an s-expression in the context of an environment."""
     if isinstance(expr, Symbol):
         return env[expr]
     elif not isinstance(expr, list):
