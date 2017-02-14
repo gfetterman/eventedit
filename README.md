@@ -49,6 +49,17 @@ Other than these assumptions, this tool relies on no knowledge of Bark. This
 includes Bark metadata. The user is responsible for feeding label data to the
 correction structure, and for writing any corrected event data to disk.
 
+## Installation
+
+The interface has been tested against both Python 2.7 and Python 3.5.
+
+    git clone https://github.com/gfetterman/labelcorrection
+    cd labelcorrection
+    pip install .
+    
+    # optional tests
+    pytest -v
+
 ## Usage
 
 The pattern for usage of this tool is:
