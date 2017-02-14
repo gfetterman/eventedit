@@ -248,99 +248,6 @@ def test_invert():
     ident = lc.invert(lc.invert(cmd))
     assert cmd == ident
 
-# test code generators
-
-def test_cg_set_name():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_set_name(labels, 0, 'q')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['name'] == 'q'
-
-def test_cg_set_start():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_set_start(labels, 0, 1.6)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['start'] == 1.6
-
-def test_cg_set_stop():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_set_stop(labels, 0, 1.8)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['stop'] == 1.8
-
-def test_cg_merge_next():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_merge_next(labels, 0, new_name='q')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 3
-    assert labels[0]['start'] == 1.0
-    assert labels[0]['stop'] == 3.5
-    assert labels [0]['name'] == 'q'
-    
-    cmd = lc.cg_merge_next(labels, 0)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 2
-    assert labels[0]['name'] == 'qc'
-
-def test_cg_split():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_split(labels, 0, 1.8, 'a1', 'a2')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 5
-    assert labels[0]['start'] == 1.0
-    assert labels[0]['stop'] == 1.8
-    assert labels[0]['name'] == 'a1'
-    assert labels[1]['start'] == 1.8
-    assert labels[1]['stop'] == 2.1
-    assert labels[1]['name'] == 'a2'
-    
-    cmd = lc.cg_split(labels, 0, 1.5)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 6
-    assert labels[0]['name'] == 'a1'
-    assert labels[1]['name'] == ''
-
-def test_cg_delete():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_delete(labels, 0)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 3
-    assert labels[0]['start'] == 2.1
-    assert labels[0]['stop'] == 3.5
-    assert labels[0]['name'] == 'b'
-
-def test_cg_create():
-    labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
-    
-    cmd = lc.cg_create(labels, 0, 0.5, stop=0.9, name='q', tier='spam')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 5
-    assert labels[0]['start'] == 0.5
-    assert labels[0]['stop'] == 0.9
-    assert labels[0]['name'] == 'q'
-    assert labels[0]['tier'] == 'spam'
-    assert labels[1] == TEST_LABELS[0]
-
 # test CorrectionStack methods
 
 def make_corr_file(tmpdir):
@@ -571,3 +478,103 @@ def test_CS_redo_all(tmpdir):
     assert cs.labels[2]['stop'] == 4.5
     
     os.remove(tf.name)
+
+# test code generators
+
+def test_cg_rename():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.rename(0, 'q')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['name'] == 'q'
+
+def test_cg_set_start():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.set_start(0, 1.6)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['start'] == 1.6
+
+def test_cg_set_stop():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.set_stop(0, 1.8)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert labels[0]['stop'] == 1.8
+
+def test_cg_merge_next():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.merge_next(0, new_name='q')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 3
+    assert labels[0]['start'] == 1.0
+    assert labels[0]['stop'] == 3.5
+    assert labels [0]['name'] == 'q'
+    
+    cmd = cs.merge_next(0)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 2
+    assert labels[0]['name'] == 'qc'
+
+def test_cg_split():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.split(0, 1.8, 'a1', 'a2')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 5
+    assert labels[0]['start'] == 1.0
+    assert labels[0]['stop'] == 1.8
+    assert labels[0]['name'] == 'a1'
+    assert labels[1]['start'] == 1.8
+    assert labels[1]['stop'] == 2.1
+    assert labels[1]['name'] == 'a2'
+    
+    cmd = cs.split(0, 1.5)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 6
+    assert labels[0]['name'] == 'a1'
+    assert labels[1]['name'] == ''
+
+def test_cg_delete():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.delete(0)
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 3
+    assert labels[0]['start'] == 2.1
+    assert labels[0]['stop'] == 3.5
+    assert labels[0]['name'] == 'b'
+
+def test_cg_create():
+    labels = copy.deepcopy(TEST_LABELS)
+    cs = lc.CorrectionStack(labels=labels, no_file=True)
+    test_env = lc.lc_env()
+    test_env.update({'labels': labels})
+    
+    cmd = cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
+    lc.evaluate(lc.parse(cmd), test_env)
+    assert len(labels) == 5
+    assert labels[0]['start'] == 0.5
+    assert labels[0]['stop'] == 0.9
+    assert labels[0]['name'] == 'q'
+    assert labels[0]['tier'] == 'spam'
+    assert labels[1] == TEST_LABELS[0]

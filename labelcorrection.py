@@ -8,15 +8,18 @@ import uuid
 
 class CorrectionStack:
     def __init__(self, labels, label_file=None, apply=False,
-                 corr_file=None, dir=None):
+                 corr_file=None, dir=None, no_file=False):
         self.labels = labels
         if corr_file is None:
-            temp_file = tempfile.NamedTemporaryFile(mode='w',
-                                                    suffix='.corr',
-                                                    dir=dir,
-                                                    delete=False)
-            temp_file.close()
-            self.corr_file = temp_file.name
+            if no_file:
+                self.corr_file = None
+            else:
+                temp_file = tempfile.NamedTemporaryFile(mode='w',
+                                                        suffix='.corr',
+                                                        dir=dir,
+                                                        delete=False)
+                temp_file.close()
+                self.corr_file = temp_file.name
             self.stack = []
             self.pc = -1
             self.written = self.pc
@@ -91,6 +94,94 @@ class CorrectionStack:
     def redo_all(self):
         while self.pc < len(self.stack) - 1:
             self.redo()
+    
+    # code generators
+    
+    def _gen_code(self, op, target_name, target, other_args):
+        ntl = [Symbol(op)]
+        ntl.append(KeyArg('labels'))
+        ntl.append(Symbol('labels'))
+        ntl.append(KeyArg('target'))
+        ntl.append([Symbol(target_name)])
+        for k, a in target.items():
+            ntl[-1].append(KeyArg(k))
+            ntl[-1].append(a)
+        for k, a in other_args.items():
+            ntl.append(KeyArg(k))
+            ntl.append(a)
+        return detokenize(write_to_tokens(ntl))
+
+    def rename(self, index, new_name):
+        op = 'set_name'
+        target_name = 'interval'
+        target = {'index': index,
+                  'name': self.labels[index]['name']}
+        other_args = {'new_name': new_name}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def set_start(self, index, new_start):
+        op = 'set_boundary'
+        target_name = 'interval'
+        target = {'index': index,
+                  'bd': self.labels[index]['start']}
+        other_args = {'which': 'start', 'new_bd': new_start}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def set_stop(self, index, new_stop):
+        op = 'set_boundary'
+        target_name = 'interval'
+        target = {'index': index,
+                  'bd': self.labels[index]['stop']}
+        other_args = {'which': 'stop', 'new_bd': new_stop}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def merge_next(self, index, new_name=None):
+        op = 'merge_next'
+        target_name = 'interval_pair'
+        target = {'index': index,
+                  'name': self.labels[index]['name'],
+                  'sep': self.labels[index]['stop'],
+                  'next_name': self.labels[index + 1]['name']}
+        if new_name is None:
+            new_name = target['name'] + target['next_name']
+        other_args = {'new_name': new_name,
+                      'new_sep': None,
+                      'new_next_name': None}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def split(self, index, new_sep, new_name=None, new_next_name=None):
+        op = 'split'
+        target_name = 'interval_pair'
+        target = {'index': index,
+                  'name': self.labels[index]['name'],
+                  'sep': None,
+                  'next_name': None}
+        if new_name is None:
+            new_name = target['name']
+        if new_next_name is None:
+            new_next_name = ''
+        other_args = {'new_name': new_name,
+                      'new_sep': new_sep,
+                      'new_next_name': new_next_name}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def delete(self, index):
+        op = 'delete'
+        target_name = 'interval'
+        target = {'index': index}
+        target.update(self.labels[index])
+        other_args = {}
+        return self._gen_code(op, target_name, target, other_args)
+
+    def create(self, index, start, **kwargs):
+        op = 'create'
+        target_name = 'interval'
+        target = {'index': index,
+                  'start': start}
+        target.update(kwargs)
+        other_args = {}
+        return self._gen_code(op, target_name, target, other_args)
+
 
 # raw operations
 
@@ -135,90 +226,6 @@ def _create(labels, target, **kwargs):
 
 # code-generators
 
-def _gen_code(op, target_name, target, other_args):
-    ntl = [Symbol(op)]
-    ntl.append(KeyArg('labels'))
-    ntl.append(Symbol('labels'))
-    ntl.append(KeyArg('target'))
-    ntl.append([Symbol(target_name)])
-    for k, a in target.items():
-        ntl[-1].append(KeyArg(k))
-        ntl[-1].append(a)
-    for k, a in other_args.items():
-        ntl.append(KeyArg(k))
-        ntl.append(a)
-    return detokenize(write_to_tokens(ntl))
-
-def cg_set_name(labels, index, new_name):
-    op = 'set_name'
-    target_name = 'interval'
-    target = {'index': index,
-              'name': labels[index]['name']}
-    other_args = {'new_name': new_name}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_set_start(labels, index, new_start):
-    op = 'set_boundary'
-    target_name = 'interval'
-    target = {'index': index,
-              'bd': labels[index]['start']}
-    other_args = {'which': 'start', 'new_bd': new_start}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_set_stop(labels, index, new_stop):
-    op = 'set_boundary'
-    target_name = 'interval'
-    target = {'index': index,
-              'bd': labels[index]['stop']}
-    other_args = {'which': 'stop', 'new_bd': new_stop}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_merge_next(labels, index, new_name=None):
-    op = 'merge_next'
-    target_name = 'interval_pair'
-    target = {'index': index,
-              'name': labels[index]['name'],
-              'sep': labels[index]['stop'],
-              'next_name': labels[index + 1]['name']}
-    if new_name is None:
-        new_name = target['name'] + target['next_name']
-    other_args = {'new_name': new_name,
-                  'new_sep': None,
-                  'new_next_name': None}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_split(labels, index, new_sep, new_name=None, new_next_name=None):
-    op = 'split'
-    target_name = 'interval_pair'
-    target = {'index': index,
-              'name': labels[index]['name'],
-              'sep': None,
-              'next_name': None}
-    if new_name is None:
-        new_name = target['name']
-    if new_next_name is None:
-        new_next_name = ''
-    other_args = {'new_name': new_name,
-                  'new_sep': new_sep,
-                  'new_next_name': new_next_name}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_delete(labels, index):
-    op = 'delete'
-    target_name = 'interval'
-    target = {'index': index}
-    target.update(labels[index])
-    other_args = {}
-    return _gen_code(op, target_name, target, other_args)
-
-def cg_create(labels, index, start, **kwargs):
-    op = 'create'
-    target_name = 'interval'
-    target = {'index': index,
-              'start': start}
-    target.update(kwargs)
-    other_args = {}
-    return _gen_code(op, target_name, target, other_args)
 
 # invert operations
 

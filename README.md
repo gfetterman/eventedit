@@ -55,8 +55,7 @@ The pattern for usage of this tool is:
 
 + Create a `CorrectionStack` object
 + Add and subtract correction operations to and from the stack using `push`,
-  `undo`, and `redo`. Operations for pushing are produced by the `cg_*`
-  functions.
+  `undo`, and `redo`. Operations to push are methods of the `CorrectionStack`.
 + Write the corrected label data back to Bark-formatted files.
 + Write the record of the corrections carried out by calling the stack's
   `write_to_file()` method.
@@ -74,17 +73,15 @@ The following is an example of use with already-loaded Bark event data.
     
     undo_stack.labels[55]['name']
     # 'a'
-    undo_stack.push(lc.cg_set_name(undo_stack.labels,
-                                   index=55,
-                                   new_name='b')
+    undo_stack.push(undo_stack.rename(index=55,
+                                      new_name='b')
     undo_stack.labels[55]['name']
     # 'b'
     
     undo_stack.labels[56]['stop']
     # 77.5600
-    undo_stack.push(lc.cg_set_stop(undo_stack.labels,
-                                   index=56,
-                                   new_stop=78.19988)
+    undo_stack.push(undo_stack.set_stop(index=56,
+                                        new_stop=78.19988)
     undo_stack.labels[56]['stop']
     # 78.19988
     
