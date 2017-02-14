@@ -325,8 +325,7 @@ def invert(cmd):
 
 def detokenize(token_list):
     """Turns a flat list of tokens into a command."""
-    cmd = ''
-    cmd += token_list[0]
+    cmd = token_list[0]
     for t in token_list[1:]:
         if t != ')' and cmd[-1] != '(':
             cmd += ' '
@@ -335,8 +334,7 @@ def detokenize(token_list):
 
 def write_to_tokens(ntl):
     """Turns an s-expression into a flat token list."""
-    token_list = []
-    token_list.append('(')
+    token_list = ['(']
     for t in ntl:
         if isinstance(t, list):
             token_list.extend(write_to_tokens(t))
@@ -349,16 +347,11 @@ def deatomize(a):
     """Turns an atom into a token."""
     if a is None:
         return 'null'
-    elif isinstance(a, KeyArg):
-        if len(a) > 1:
-            return '#:' + a[0] + a[1:].replace('_', '-')
-        else:
-            return '#:' + a
     elif isinstance(a, Symbol):
-        if len(a) > 1:
-            return a[0] + a[1:].replace('_', '-')
-        else:
-            return a
+        ret = a[0] + a[1:].replace('_', '-')
+        if isinstance(a, KeyArg):
+            ret = '#:' + ret
+        return ret
     elif isinstance(a, str):
         return '"' + a + '"'
     elif isinstance(a, numbers.Number):
