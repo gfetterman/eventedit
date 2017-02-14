@@ -1,6 +1,6 @@
 import pytest
 import copy
-import labelcorrection as lc
+import labelcorrection.labelcorrection as lc
 import os
 import tempfile
 import yaml
