@@ -372,9 +372,9 @@ class Symbol(str): pass
 
 class KeyArg(Symbol): pass
 
-def tokenize(command):
+def tokenize(cmd):
     """Turns a command string into a flat token list."""
-    first_pass = command.split()
+    first_pass = cmd.split()
     second_pass = []
     in_string = False
     for token in first_pass:
@@ -447,9 +447,9 @@ def read_from_tokens(token_list):
         return atomize(token)
 
 
-def parse(command):
+def parse(cmd):
     """Turns a command string into an s-expression."""
-    return read_from_tokens(tokenize(command))
+    return read_from_tokens(tokenize(cmd))
 
 
 def lc_env():
