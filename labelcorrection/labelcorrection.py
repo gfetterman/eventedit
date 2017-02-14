@@ -367,21 +367,17 @@ class KeyArg(Symbol): pass
 
 def tokenize(cmd):
     """Turns a command string into a flat token list."""
-    first_pass = cmd.split()
     second_pass = []
     in_string = False
-    for token in first_pass:
+    for token in cmd.split():
         num_quotes = token.count('"')
-        if num_quotes % 2 != 0 and not in_string:
-            # open quote
+        if num_quotes % 2 == 1 and not in_string: # open quote
             second_pass.append(token)
             in_string = True
-        elif num_quotes % 2 != 0 and in_string:
-            # close quote
+        elif num_quotes % 2 == 1 and in_string: # close quote
             second_pass[-1] += ' ' + token
             in_string = False
-        elif num_quotes == 0 and in_string:
-            # middle words in quote
+        elif num_quotes == 0 and in_string: # middle words in quote
             second_pass[-1] += ' ' + token
         else:
             second_pass.append(token)
@@ -416,9 +412,8 @@ def atomize(token):
         try:
             return float(token)
         except ValueError:
-            if len(token) > 1:
-                token = token.replace('-', '_')
-            if len(token) > 2 and token[:2] == '#:':
+            token = token[0] + token[1:].replace('-', '_')
+            if token[:2] == '#:':
                 return KeyArg(token[2:])
             return Symbol(token)
 
@@ -447,15 +442,14 @@ def parse(cmd):
 
 def lc_env():
     """Returns the default environment for s-expression evaluation."""
-    env = {}
-    env.update({'set_name': _set_name,
-                'set_boundary': _set_bd,
-                'merge_next': _merge_next,
-                'split': _split,
-                'delete': _delete,
-                'create': _create,
-                'interval': dict,
-                'interval_pair': dict})
+    env = {'set_name': _set_name,
+           'set_boundary': _set_bd,
+           'merge_next': _merge_next,
+           'split': _split,
+           'delete': _delete,
+           'create': _create,
+           'interval': dict,
+           'interval_pair': dict}
     return env
 
 
