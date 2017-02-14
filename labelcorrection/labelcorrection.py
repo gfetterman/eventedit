@@ -411,7 +411,10 @@ def tokenize(command):
 def atomize(token):
     """Turns a token into an atom."""
     if token[0] == '"':
-        return token[1:-1].decode('string_escape')
+        try:
+            return token[1:-1].decode('string_escape')
+        except AttributeError: # python 2/3 support
+            return token[1:-1]
     if token == 'null':
         return None
     try:
@@ -480,4 +483,7 @@ def _grouper(iterable, n):
     
        Copied from itertools recipe suggestions."""
     args = [iter(iterable)] * n
-    return itertools.izip_longest(*args)
+    try:
+        return itertools.izip_longest(*args)
+    except AttributeError: # python 2/3 support
+        return itertools.zip_longest(*args)
