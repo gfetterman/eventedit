@@ -1,12 +1,22 @@
 import pytest
 import copy
 import labelcorrection as lc
+import os
+import tempfile
+import yaml
 
 TEST_COMMAND = '(set-name (interval 3 4.7 5.0 "d" "focus_bird") "b")'
 TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 2.1, 'stop': 3.5, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
+TEST_OPS = ["""(set-name #:labels labels
+                         #:target (interval #:index 0 #:name "a")
+                         #:new-name "q")""",
+            """(set-boundary #:labels labels
+                             #:target (interval #:index 2 #:bd 4.2)
+                             #:which "stop"
+                             #:new-bd 4.5)"""]
 
 # test raw label correction operations
 
@@ -330,3 +340,234 @@ def test_cg_create():
     assert labels[0]['name'] == 'q'
     assert labels[0]['tier'] == 'spam'
     assert labels[1] == TEST_LABELS[0]
+
+# test CorrectionStack methods
+
+def make_corr_file(tmpdir):
+    tf = tempfile.NamedTemporaryFile(mode='w', dir=tmpdir.strpath, delete=False)
+    tf.write("""# corrections, YAML\n---\n""")
+    file_data = {'uuid': '0',
+                 'operations': TEST_OPS,
+                 'label_file': 'not/a/real/file'}
+    tf.write(yaml.safe_dump(file_data))
+    tf.close()
+    return tf
+
+def test_CS_init(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    
+    cs = lc.CorrectionStack(labels=labels, dir=tmpdir.strpath)
+    assert cs.labels == labels
+    assert os.path.exists(cs.corr_file)
+    assert cs.corr_file[-5:] == '.corr'
+    
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name)
+    assert cs.labels == TEST_LABELS
+    assert cs.corr_file == tf.name
+    assert os.path.exists(cs.corr_file)
+    assert len(cs.stack) == 2
+    assert cs.stack[0] == TEST_OPS[0]
+    assert cs.stack[1] == TEST_OPS[1]
+    assert cs.uuid == '0'
+    assert cs.pc == 1
+    assert cs.written == cs.pc
+    assert cs.dirty == False
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    assert cs.corr_file == tf.name
+    assert cs.pc == len(cs.stack) - 1
+    assert cs.written == cs.pc
+    assert cs.dirty == False
+    assert cs.labels[1] == TEST_LABELS[1]
+    assert cs.labels[3] == TEST_LABELS[3]
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[2]['stop'] == 4.5
+    
+    os.remove(tf.name)
+
+def test_CS_read_from_file(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, dir=tmpdir.strpath)
+    cs.read_from_file(tf.name)
+    assert cs.pc == 1
+    assert cs.written == 1
+    assert cs.dirty == False
+    assert cs.labels == TEST_LABELS
+    assert cs.stack == TEST_OPS
+    
+    cs.read_from_file(tf.name, already_applied=False)
+    assert cs.pc == -1
+    assert cs.written == 1
+    assert cs.dirty == False
+    assert cs.labels == TEST_LABELS
+    assert cs.stack == TEST_OPS
+    
+    os.remove(tf.name)
+
+def test_CS_write_to_file(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    new_cmd = """(set-name #:labels labels
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
+    cs.push(new_cmd)
+    os.remove(tf.name)
+    cs.write_to_file()
+    cs_new = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    assert len(cs_new.stack) == 3
+    assert cs_new.stack == cs.stack
+    assert cs_new.stack[-1] == new_cmd
+    assert cs_new.label_file == cs.label_file
+    assert cs_new.uuid == cs.uuid
+    
+    os.remove(tf.name)
+
+def test_CS_undo_and_redo(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    new_cmd = """(set-name #:labels labels
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
+    cs.push(new_cmd)
+    assert cs.labels[1]['name'] == "z"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+
+    cs.undo() # undo new_cmd
+    assert cs.pc == len(cs.stack) - 2
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == False
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+    
+    cs.undo() # undo TEST_OPS[1]
+    assert cs.pc == len(cs.stack) - 3
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == True
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.2
+    assert cs.labels[0]['name'] == "q"
+    
+    cs.undo() # undo TEST_OPS[0]
+    cs.undo() # undo actions when at tail do nothing
+    cs.undo()
+    assert cs.pc == -1
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == True
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.2
+    assert cs.labels[0]['name'] == "a"
+    
+    cs.redo() # redo TEST_OPS[0]
+    assert cs.pc == 0
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == True
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.2
+    assert cs.labels[0]['name'] == "q"
+    
+    cs.redo() # redo TEST_OPS[1]
+    assert cs.pc == 1
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == True
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+
+    cs.redo() # redo new_cmd
+    cs.redo() # redo actions when at head do nothing
+    cs.redo()
+    assert cs.pc == 2
+    assert cs.written == len(cs.stack) - 2
+    assert cs.dirty == True
+    assert cs.labels[1]['name'] == "z"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+
+    os.remove(tf.name)
+
+def test_CS_push(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    assert cs.labels[1]['name'] == "b"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+
+    new_cmd = """(set-name #:labels labels
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
+    cs.push(new_cmd) # push adds new_cmd to head of stack
+    assert cs.labels[1]['name'] == "z"
+    assert cs.labels[2]['stop'] == 4.5
+    assert cs.labels[0]['name'] == "q"
+    
+    cs.undo()
+    cs.undo()
+    cs.push(new_cmd) # TEST_OPS[1] is gone; new_cmd now at head of stack
+    assert len(cs.stack) == 2
+    assert cs.labels[1]['name'] == "z"
+    assert cs.labels[2]['stop'] == 4.2
+    assert cs.labels[0]['name'] == "q"
+    
+    os.remove(tf.name)
+
+def test_CS_peek(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    p = cs.peek() # default is to show op at pc, which is last one applied
+    assert p == TEST_OPS[1]
+    
+    p = cs.peek(len(cs.stack) + 10) # peeking past head returns None
+    assert p is None
+    
+    p = cs.peek(-10) # peeking before tail returns None
+    assert p is None
+    
+    p = cs.peek(0)
+    assert p == TEST_OPS[0]
+    
+    os.remove(tf.name)
+
+def test_CS__apply(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    cs = lc.CorrectionStack(labels=labels, corr_file=tf.name, apply=True)
+    new_cmd = """(set-name #:labels labels
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
+    cs._apply(new_cmd)
+    # this screws up the pc tracking - the stack is now in an undefined state
+    # but we can still check that _apply performed the new_cmd operation
+    assert cs.labels[1]['name'] == 'z'
+    
+    os.remove(tf.name)
+
+def test_CS_redo_all(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+
+    cs = lc.CorrectionStack(labels=labels, dir=tmpdir.strpath)
+    cs.read_from_file(tf.name, already_applied=False)
+    # none of the stack 
+    assert cs.labels[0]['name'] == TEST_LABELS[0]['name'] # 'a'
+    assert cs.labels[2]['stop'] == TEST_LABELS[2]['stop'] # 4.2
+    
+    cs.redo_all()
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[2]['stop'] == 4.5
+    
+    os.remove(tf.name)

@@ -4,9 +4,11 @@ import numbers
 import tempfile
 import codecs
 import yaml
+import uuid
 
 class CorrectionStack:
-    def __init__(self, labels, apply=False, corr_file=None, dir=None):
+    def __init__(self, labels, label_file=None, apply=False,
+                 corr_file=None, dir=None):
         self.labels = labels
         if corr_file is None:
             temp_file = tempfile.NamedTemporaryFile(mode='w',
@@ -17,26 +19,16 @@ class CorrectionStack:
             self.corr_file = temp_file.name
             self.stack = []
             self.pc = -1
-            self.written = -1
+            self.written = self.pc
             self.dirty = True
+            self.uuid = str(uuid.uuid4())
+            self.label_file = label_file
         else:
-            self.corr_file = corr_file
-            self.stack = self.read_from_file()
+            self.read_from_file(corr_file, already_applied=(not apply))
             if apply:
-                if len(self.stack) > 0:
-                    self.pc = 0
-                    self.written = len(self.stack) - 1
-                else:
-                    self.pc = -1
-                    self.written = -1
-                self.dirty = False
-                self.apply_stack()
-            else:
-                self.pc = len(self.stack) - 1
-                self.written = self.pc
-                self.dirty = False
+                self.redo_all()
     
-    def read_from_file(self, file=None):
+    def read_from_file(self, file=None, already_applied=True):
         if file is None:
             file = self.corr_file
         with codecs.open(file, 'r', encoding='utf-8') as fp:
@@ -44,6 +36,13 @@ class CorrectionStack:
             self.uuid = file_data['uuid']
             self.stack = file_data['operations']
             self.label_file = file_data['label_file']
+        self.corr_file = file
+        self.written = len(self.stack) - 1
+        self.dirty = False
+        if already_applied:
+            self.pc = self.written
+        else:
+            self.pc = -1
     
     def write_to_file(self, file=None):
         if file is None:
@@ -51,14 +50,14 @@ class CorrectionStack:
         with codecs.open(file, 'w', encoding='utf-8') as fp:
             file_data = {'uuid': self.uuid,
                          'label_file': self.label_file,
-                         'operations': self.stack[:self.pc]}
+                         'operations': self.stack[:self.pc + 1]}
             header = """# corrections file using YAML syntax\n---\n"""
             fp.write(header)
             fp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
         if self.pc >= 0:
-            self.apply(invert(self.stack[self.pc]))
+            self._apply(invert(self.stack[self.pc]))
             self.pc -= 1
             if self.pc < self.written:
                 self.dirty = True
@@ -67,34 +66,31 @@ class CorrectionStack:
         stacklen = len(self.stack)
         if stacklen > 0 and self.pc < stacklen - 1:
             self.pc += 1
-            self.apply(self.stack[self.pc])
+            self._apply(self.stack[self.pc])
     
     def push(self, cmd):
         if self.pc >= 0 and self.pc < len(self.stack) - 1:
             self.stack = self.stack[:(self.pc + 1)]
         self.stack.append(cmd)
         self.pc += 1
-        self.apply(cmd)
+        self._apply(cmd)
     
-    def pop(self):
-        self.undo()
-        return self.peek(self.pc + 1)
-    
-    def peek(self, index=self.pc):
+    def peek(self, index=None):
+        if index is None:
+            index = self.pc
         if index < len(self.stack) and index >= 0:
-            return self.stack[self.pc]
-        else
+            return self.stack[index]
+        else:
             return None
     
-    def apply(self, cmd):
+    def _apply(self, cmd):
         env = lc_env()
         env.update({'labels': self.labels})
         evaluate(parse(cmd), env)
     
-    def apply_stack(self):
-        if self.pc >= 0:
-            while self.pc < len(self.stack) - 1:
-                self.redo()
+    def redo_all(self):
+        while self.pc < len(self.stack) - 1:
+            self.redo()
 
 # raw operations
 
