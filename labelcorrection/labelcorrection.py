@@ -94,11 +94,9 @@ class CorrectionStack:
             self._apply(self.stack[self.pc])
     
     def push(self, cmd):
-        """Add command to top of stack and execute it.
+        """Adds command string to top of stack and execute it.
            
-           cmd -- Racket command string
-           
-           If pc isn't at top of stack, discards entire stack above it."""
+           If pc not at top of stack, discards entire stack above it."""
         if self.pc >= 0 and self.pc < len(self.stack) - 1:
             self.stack = self.stack[:(self.pc + 1)]
         self.stack.append(cmd)
@@ -106,9 +104,9 @@ class CorrectionStack:
         self._apply(cmd)
     
     def peek(self, index=None):
-        """Returns Racket command string at top of stack, or index.
+        """Returns command string at top of stack, or index.
            
-           index -- if outside stack, return None"""
+           If index is outside stack, returns None."""
         if index is None:
             index = self.pc
         if index < len(self.stack) and index >= 0:
@@ -117,9 +115,7 @@ class CorrectionStack:
             return None
     
     def _apply(self, cmd):
-        """Executes cmd, applied to labels.
-        
-           cmd -- Racket command string"""
+        """Executes command string, applied to labels."""
         env = lc_env()
         env.update({'labels': self.labels})
         evaluate(parse(cmd), env)
@@ -154,7 +150,6 @@ class CorrectionStack:
     def rename(self, index, new_name):
         """Generates command string to rename an interval.
            
-           index -- integer
            new_name -- string"""
         op = 'set_name'
         target_name = 'interval'
@@ -166,8 +161,7 @@ class CorrectionStack:
     def set_start(self, index, new_start):
         """Generates command string to move an interval's start.
            
-           index -- integer
-           new_start -- number"""
+           new_start -- float"""
         op = 'set_boundary'
         target_name = 'interval'
         target = {'index': index,
@@ -178,8 +172,7 @@ class CorrectionStack:
     def set_stop(self, index, new_stop):
         """Generates command string to move an interval's stop.
            
-           index -- integer
-           new_stop -- number"""
+           new_stop -- float"""
         op = 'set_boundary'
         target_name = 'interval'
         target = {'index': index,
@@ -190,7 +183,6 @@ class CorrectionStack:
     def merge_next(self, index, new_name=None):
         """Generates command string to merge an interval and its successor.
            
-           index -- integer
            new_name -- string; if absent, new interval name is concatenation
                        of two parents' names"""
         op = 'merge_next'
@@ -209,7 +201,6 @@ class CorrectionStack:
     def split(self, index, new_sep, new_name=None, new_next_name=None):
         """Generates command string to split an interval in two.
            
-           index -- integer
            new_sep -- number; must be within interval's limits
            new_name -- string; if absent"""
         op = 'split'
@@ -228,9 +219,7 @@ class CorrectionStack:
         return self._gen_code(op, target_name, target, other_args)
 
     def delete(self, index):
-        """Generates command string to delete an interval.
-           
-           index -- integer"""
+        """Generates command string to delete an interval."""
         op = 'delete'
         target_name = 'interval'
         target = {'index': index}
@@ -241,8 +230,7 @@ class CorrectionStack:
     def create(self, index, start, **kwargs):
         """Generates command string to create a new interval.
            
-           index -- integer
-           start -- number
+           start -- float
            kwargs -- any other column values the interval possesses"""
         op = 'create'
         target_name = 'interval'
@@ -303,9 +291,7 @@ INVERSE_TABLE = {'set_name': 'set_name',
                  'create': 'delete'}
 
 def invert(cmd):
-    """Generates a command string for the inverse of cmd.
-    
-       cmd -- command string"""
+    """Generates a command string for the inverse of cmd."""
     ntl = parse(cmd)
     op = ntl[0]
     inverse = INVERSE_TABLE[op]
