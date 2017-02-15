@@ -52,9 +52,13 @@ class CorrectionStack:
         if file is None:
             file = self.corr_file
         with codecs.open(file, 'r', encoding='utf-8') as fp:
-            file_data = yaml.safe_load(fp)
+            self.stack = []
+            for op in fp:
+                if op != '\n':
+                    self.stack.append(op.strip())
+        with codecs.open((file + '.yaml'), 'r', encoding='utf-8') as mdfp:
+            file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
-            self.stack = file_data['operations']
             self.evfile_hash = file_data['evfile_hash']
         self.corr_file = file
         self.written = len(self.stack) - 1
@@ -71,12 +75,14 @@ class CorrectionStack:
         if file is None:
             file = self.corr_file
         with codecs.open(file, 'w', encoding='utf-8') as fp:
+            for op in self.stack[:self.pc + 1]:
+                fp.write(op + '\n')
+        with codecs.open((file + '.yaml'), 'w', encoding='utf-8') as mdfp:
             file_data = {'uuid': self.uuid,
-                         'evfile_hash': self.evfile_hash,
-                         'operations': self.stack[:self.pc + 1]}
+                         'evfile_hash': self.evfile_hash}
             header = """# corrections file using YAML syntax\n---\n"""
-            fp.write(header)
-            fp.write(yaml.safe_dump(file_data, default_flow_style=False))
+            mdfp.write(header)
+            mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
         """Undoes last applied correction.

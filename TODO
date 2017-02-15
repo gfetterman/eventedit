@@ -1,5 +1,2 @@
 # TODO
 
-+ changes resulting from conversion with KJB 2/14/17
-  2. change reading/writing to file to create a pure racket file and a YAML
-     metadata file

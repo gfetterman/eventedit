@@ -10,13 +10,8 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 2.1, 'stop': 3.5, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
-TEST_OPS = ["""(set-name #:labels labels
-                         #:target (interval #:index 0 #:name "a")
-                         #:new-name "q")""",
-            """(set-boundary #:labels labels
-                             #:target (interval #:index 2 #:bd 4.2)
-                             #:which "stop"
-                             #:new-bd 4.5)"""]
+TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:name "a") #:new-name "q")""",
+            """(set-boundary #:labels labels #:target (interval #:index 2 #:bd 4.2) #:which "stop" #:new-bd 4.5)"""]
 
 # test raw label correction operations
 
@@ -252,12 +247,14 @@ def test_invert():
 
 def make_corr_file(tmpdir):
     tf = tempfile.NamedTemporaryFile(mode='w', dir=tmpdir.strpath, delete=False)
-    tf.write("""# corrections, YAML\n---\n""")
-    file_data = {'uuid': '0',
-                 'operations': TEST_OPS,
-                 'evfile_hash': '0123-4567'}
-    tf.write(yaml.safe_dump(file_data))
+    for op in TEST_OPS:
+        tf.write(op + '\n')
     tf.close()
+    with open((tf.name + '.yaml'), 'w') as mdfp:
+        mdfp.write("""# corrections metadata, YAML\n---\n""")
+        file_metadata = {'uuid': '0',
+                         'evfile_hash': '0123-4567'}
+        mdfp.write(yaml.safe_dump(file_metadata))
     return tf
 
 def test_CS_init(tmpdir):
@@ -331,9 +328,7 @@ def test_CS_write_to_file(tmpdir):
                             event_file=tf.name,
                             corr_file=tf.name,
                             apply=True)
-    new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:name "b")
-                           #:new-name "z")"""
+    new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(new_cmd)
     os.remove(tf.name)
     cs.write_to_file()
