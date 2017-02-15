@@ -6,6 +6,8 @@ import codecs
 import yaml
 import uuid
 
+__version__ = "0.1"
+
 class CorrectionStack:
     def __init__(self, labels, label_file=None, apply=False,
                  corr_file=None, dir=None, no_file=False):
