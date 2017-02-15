@@ -509,142 +509,119 @@ def test_CS_redo_all(tmpdir):
 
 # test code generators
 
-def test_cg_rename():
+def test_CS_rename():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.rename(0, 'q')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['name'] == 'q'
+    cs.rename(0, 'q')
+    assert cs.labels[0]['name'] == 'q'
     
     os.remove(tf.name)
 
-def test_cg_set_start():
+def test_CS_set_start():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.set_start(0, 1.6)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['start'] == 1.6
+    cs.set_start(0, 1.6)
+    assert cs.labels[0]['start'] == 1.6
 
     os.remove(tf.name)
 
-def test_cg_set_stop():
+def test_CS_set_stop():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.set_stop(0, 1.8)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert labels[0]['stop'] == 1.8
+    cs.set_stop(0, 1.8)
+    assert cs.labels[0]['stop'] == 1.8
 
     os.remove(tf.name)
 
-def test_cg_merge_next():
+def test_CS_merge_next():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.merge_next(0, new_name='q')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 3
-    assert labels[0]['start'] == 1.0
-    assert labels[0]['stop'] == 3.5
-    assert labels [0]['name'] == 'q'
+    cs.merge_next(0, new_name='q')
+    assert len(cs.labels) == 3
+    assert cs.labels[0]['start'] == 1.0
+    assert cs.labels[0]['stop'] == 3.5
+    assert cs.labels [0]['name'] == 'q'
     
-    cmd = cs.merge_next(0)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 2
-    assert labels[0]['name'] == 'qc'
+    cs.merge_next(0)
+    assert len(cs.labels) == 2
+    assert cs.labels[0]['name'] == 'qc'
 
     os.remove(tf.name)
 
-def test_cg_split():
+def test_CS_split():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.split(0, 1.8, 'a1', 'a2')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 5
-    assert labels[0]['start'] == 1.0
-    assert labels[0]['stop'] == 1.8
-    assert labels[0]['name'] == 'a1'
-    assert labels[1]['start'] == 1.8
-    assert labels[1]['stop'] == 2.1
-    assert labels[1]['name'] == 'a2'
+    cs.split(0, 1.8, 'a1', 'a2')
+    assert len(cs.labels) == 5
+    assert cs.labels[0]['start'] == 1.0
+    assert cs.labels[0]['stop'] == 1.8
+    assert cs.labels[0]['name'] == 'a1'
+    assert cs.labels[1]['start'] == 1.8
+    assert cs.labels[1]['stop'] == 2.1
+    assert cs.labels[1]['name'] == 'a2'
     
-    cmd = cs.split(0, 1.5)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 6
-    assert labels[0]['name'] == 'a1'
-    assert labels[1]['name'] == ''
+    cs.split(0, 1.5)
+    assert len(cs.labels) == 6
+    assert cs.labels[0]['name'] == 'a1'
+    assert cs.labels[1]['name'] == ''
 
     os.remove(tf.name)
 
-def test_cg_delete():
+def test_CS_delete():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.delete(0)
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 3
-    assert labels[0]['start'] == 2.1
-    assert labels[0]['stop'] == 3.5
-    assert labels[0]['name'] == 'b'
+    cs.delete(0)
+    assert len(cs.labels) == 3
+    assert cs.labels[0]['start'] == 2.1
+    assert cs.labels[0]['stop'] == 3.5
+    assert cs.labels[0]['name'] == 'b'
 
     os.remove(tf.name)
 
-def test_cg_create():
+def test_CS_create():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
                             no_file=True)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
     
-    cmd = cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
-    lc.evaluate(lc.parse(cmd), test_env)
-    assert len(labels) == 5
-    assert labels[0]['start'] == 0.5
-    assert labels[0]['stop'] == 0.9
-    assert labels[0]['name'] == 'q'
-    assert labels[0]['tier'] == 'spam'
-    assert labels[1] == TEST_LABELS[0]
+    cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
+    assert len(cs.labels) == 5
+    assert cs.labels[0]['start'] == 0.5
+    assert cs.labels[0]['stop'] == 0.9
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[0]['tier'] == 'spam'
+    assert cs.labels[1] == TEST_LABELS[0]
 
     os.remove(tf.name)

@@ -130,6 +130,36 @@ class CorrectionStack:
         while self.pc < len(self.stack) - 1:
             self.redo()
     
+    # operations
+    
+    def rename(self, index, new_name):
+        """Renames an event."""
+        self.push(self.codegen_rename(index, new_name))
+    
+    def set_start(self, index, new_start):
+        """Changes the start time of an event."""
+        self.push(self.codegen_set_start(index, new_start))
+    
+    def set_stop(self, index, new_stop):
+        """Changes the stop time of an event."""
+        self.push(self.codegen_set_stop(index, new_stop))
+    
+    def merge_next(self, index, new_name=None):
+        """Merges an event with its successor."""
+        self.push(self.codegen_merge_next(index, new_name))
+    
+    def split(self, index, new_sep, new_name=None, new_next_name=None):
+        """Splits an event in two."""
+        self.push(self.codegen_split(index, new_sep, new_name, new_next_name))
+    
+    def delete(self, index):
+        """Deletes an event."""
+        self.push(self.codegen_delete(index))
+    
+    def create(self, index, start, **kwargs):
+        """Creates a new event."""
+        self.push(self.codegen_create(index, start, **kwargs))
+    
     # code generators
     
     def _gen_code(self, op, target_name, target, other_args):
@@ -152,7 +182,7 @@ class CorrectionStack:
             ntl.append(a)
         return detokenize(write_to_tokens(ntl))
 
-    def rename(self, index, new_name):
+    def codegen_rename(self, index, new_name):
         """Generates command string to rename an interval.
            
            new_name -- string"""
@@ -163,7 +193,7 @@ class CorrectionStack:
         other_args = {'new_name': new_name}
         return self._gen_code(op, target_name, target, other_args)
 
-    def set_start(self, index, new_start):
+    def codegen_set_start(self, index, new_start):
         """Generates command string to move an interval's start.
            
            new_start -- float"""
@@ -174,7 +204,7 @@ class CorrectionStack:
         other_args = {'which': 'start', 'new_bd': new_start}
         return self._gen_code(op, target_name, target, other_args)
 
-    def set_stop(self, index, new_stop):
+    def codegen_set_stop(self, index, new_stop):
         """Generates command string to move an interval's stop.
            
            new_stop -- float"""
@@ -185,7 +215,7 @@ class CorrectionStack:
         other_args = {'which': 'stop', 'new_bd': new_stop}
         return self._gen_code(op, target_name, target, other_args)
 
-    def merge_next(self, index, new_name=None):
+    def codegen_merge_next(self, index, new_name=None):
         """Generates command string to merge an interval and its successor.
            
            new_name -- string; if absent, new interval name is concatenation
@@ -203,7 +233,7 @@ class CorrectionStack:
                       'new_next_name': None}
         return self._gen_code(op, target_name, target, other_args)
 
-    def split(self, index, new_sep, new_name=None, new_next_name=None):
+    def codegen_split(self, index, new_sep, new_name=None, new_next_name=None):
         """Generates command string to split an interval in two.
            
            new_sep -- number; must be within interval's limits
@@ -223,7 +253,7 @@ class CorrectionStack:
                       'new_next_name': new_next_name}
         return self._gen_code(op, target_name, target, other_args)
 
-    def delete(self, index):
+    def codegen_delete(self, index):
         """Generates command string to delete an interval."""
         op = 'delete'
         target_name = 'interval'
@@ -232,7 +262,7 @@ class CorrectionStack:
         other_args = {}
         return self._gen_code(op, target_name, target, other_args)
 
-    def create(self, index, start, **kwargs):
+    def codegen_create(self, index, start, **kwargs):
         """Generates command string to create a new interval.
            
            start -- float
