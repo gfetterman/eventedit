@@ -45,8 +45,8 @@ columns are ignored but preserved by the operations.
 These event data are assumed to be represented in memory in the form of a list
 of dictionaries.
 
-Other than these assumptions, this tool relies on no knowledge of Bark. This
-includes Bark metadata. The user is responsible for feeding label data to the
+Other than these assumptions, this tool relies on no knowledge of Bark,
+including Bark metadata. The user is responsible for feeding event data to the
 correction structure, and for writing any corrected event data to disk.
 
 ## Installation
@@ -65,8 +65,7 @@ The interface has been tested against both Python 2.7 and Python 3.5.
 The pattern for usage of this tool is:
 
 + Create a `CorrectionStack` object
-+ Add and subtract correction operations to and from the stack using `push`,
-  `undo`, and `redo`. Operations to push are methods of the `CorrectionStack`.
++ Execute operations on the label data by applying stack methods.
 + Write the corrected label data back to Bark-formatted files.
 + Write the record of the corrections carried out by calling the stack's
   `write_to_file()` method.
@@ -80,19 +79,17 @@ The following is an example of use with already-loaded Bark event data.
     # bark event data: voc_labels
     
     undo_stack = lc.CorrectionStack(labels=voc_labels.data,
-                                    label_file=voc_labels.path)
+                                    event_file=voc_labels.path)
     
     undo_stack.labels[55]['name']
     # 'a'
-    undo_stack.push(undo_stack.rename(index=55,
-                                      new_name='b')
+    undo_stack.rename(index=55, new_name='b')
     undo_stack.labels[55]['name']
     # 'b'
     
     undo_stack.labels[56]['stop']
     # 77.5600
-    undo_stack.push(undo_stack.set_stop(index=56,
-                                        new_stop=78.19988)
+    undo_stack.set_stop(index=56, new_stop=78.19988)
     undo_stack.labels[56]['stop']
     # 78.19988
     
