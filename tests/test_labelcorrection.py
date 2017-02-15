@@ -455,11 +455,11 @@ def test_CS_peek(tmpdir):
     p = cs.peek() # default is to show op at pc, which is last one applied
     assert p == TEST_OPS[1]
     
-    p = cs.peek(len(cs.stack) + 10) # peeking past head returns None
-    assert p is None
+    with pytest.raises(IndexError):
+        p = cs.peek(len(cs.stack) + 10)
     
-    p = cs.peek(-10) # peeking before tail returns None
-    assert p is None
+    with pytest.raises(IndexError):
+        p = cs.peek(-10)
     
     p = cs.peek(0)
     assert p == TEST_OPS[0]

@@ -115,15 +115,10 @@ class CorrectionStack:
         self._apply(cmd)
     
     def peek(self, index=None):
-        """Returns command string at top of stack, or index.
-           
-           If index is outside stack, returns None."""
+        """Returns command string at top of stack, or index."""
         if index is None:
             index = self.pc
-        if index < len(self.stack) and index >= 0:
-            return self.stack[index]
-        else:
-            return None
+        return self.stack[index]
     
     def _apply(self, cmd):
         """Executes command string, applied to labels."""
