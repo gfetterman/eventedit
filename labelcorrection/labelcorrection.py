@@ -35,8 +35,6 @@ class CorrectionStack:
                 self.corr_file = temp_file.name
             self.stack = []
             self.pc = -1
-            self.written = self.pc
-            self.dirty = True
             self.uuid = str(uuid.uuid4())
             self.evfile_hash = _buff_hash_file(event_file)
         else:
@@ -61,10 +59,8 @@ class CorrectionStack:
             self.uuid = file_data['uuid']
             self.evfile_hash = file_data['evfile_hash']
         self.corr_file = file
-        self.written = len(self.stack) - 1
-        self.dirty = False
         if already_applied:
-            self.pc = self.written
+            self.pc = len(self.stack) - 1
         else:
             self.pc = -1
     
@@ -92,8 +88,6 @@ class CorrectionStack:
         if self.pc >= 0:
             self._apply(invert(self.stack[self.pc]))
             self.pc -= 1
-            if self.pc < self.written:
-                self.dirty = True
     
     def redo(self):
         """Redoes next undone correction.

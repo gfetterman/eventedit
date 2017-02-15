@@ -279,8 +279,6 @@ def test_CS_init(tmpdir):
     assert cs.stack[1] == TEST_OPS[1]
     assert cs.uuid == '0'
     assert cs.pc == 1
-    assert cs.written == cs.pc
-    assert cs.dirty == False
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
@@ -288,8 +286,6 @@ def test_CS_init(tmpdir):
                             apply=True)
     assert cs.corr_file == tf.name
     assert cs.pc == len(cs.stack) - 1
-    assert cs.written == cs.pc
-    assert cs.dirty == False
     assert cs.labels[1] == TEST_LABELS[1]
     assert cs.labels[3] == TEST_LABELS[3]
     assert cs.labels[0]['name'] == 'q'
@@ -306,15 +302,11 @@ def test_CS_read_from_file(tmpdir):
                             dir=tmpdir.strpath)
     cs.read_from_file(tf.name)
     assert cs.pc == 1
-    assert cs.written == 1
-    assert cs.dirty == False
     assert cs.labels == TEST_LABELS
     assert cs.stack == TEST_OPS
     
     cs.read_from_file(tf.name, already_applied=False)
     assert cs.pc == -1
-    assert cs.written == 1
-    assert cs.dirty == False
     assert cs.labels == TEST_LABELS
     assert cs.stack == TEST_OPS
     
@@ -362,16 +354,12 @@ def test_CS_undo_and_redo(tmpdir):
 
     cs.undo() # undo new_cmd
     assert cs.pc == len(cs.stack) - 2
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == False
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
     
     cs.undo() # undo TEST_OPS[1]
     assert cs.pc == len(cs.stack) - 3
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == True
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "q"
@@ -380,24 +368,18 @@ def test_CS_undo_and_redo(tmpdir):
     cs.undo() # undo actions when at tail do nothing
     cs.undo()
     assert cs.pc == -1
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == True
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "a"
     
     cs.redo() # redo TEST_OPS[0]
     assert cs.pc == 0
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == True
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "q"
     
     cs.redo() # redo TEST_OPS[1]
     assert cs.pc == 1
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == True
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
@@ -406,8 +388,6 @@ def test_CS_undo_and_redo(tmpdir):
     cs.redo() # redo actions when at head do nothing
     cs.redo()
     assert cs.pc == 2
-    assert cs.written == len(cs.stack) - 2
-    assert cs.dirty == True
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"

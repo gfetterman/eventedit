@@ -7,4 +7,3 @@
   5. remove temp_file, dir, and no_file from init
   6. write context managers (enter and exit) for stack
   7. make merge handle intervening unlabeled time by including starts & stops
-  8. remove stack's written and dirty bookkeeping
