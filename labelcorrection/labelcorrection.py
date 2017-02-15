@@ -108,9 +108,7 @@ class CorrectionStack:
     
     def _apply(self, cmd):
         """Executes command string, applied to labels."""
-        env = lc_env()
-        env.update({'labels': self.labels})
-        evaluate(parse(cmd), env)
+        evaluate(parse(cmd), make_env(labels=self.labels))
     
     def redo_all(self):
         """Executes all commands above pc in stack."""
@@ -448,8 +446,8 @@ def parse(cmd):
     return read_from_tokens(tokenize(cmd))
 
 
-def lc_env():
-    """Returns the default environment for s-expression evaluation."""
+def make_env(**kwargs):
+    """Returns an environment for s-expression evaluation."""
     env = {'set_name': _set_name,
            'set_boundary': _set_bd,
            'merge_next': _merge_next,
@@ -458,10 +456,11 @@ def lc_env():
            'create': _create,
            'interval': dict,
            'interval_pair': dict}
+    env.update(kwargs)
     return env
 
 
-def evaluate(expr, env=lc_env()):
+def evaluate(expr, env=make_env()):
     """Evaluates an s-expression in the context of an environment."""
     if isinstance(expr, Symbol):
         return env[expr]

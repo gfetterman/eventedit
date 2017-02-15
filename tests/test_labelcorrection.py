@@ -145,8 +145,7 @@ def test_evaluate():
 
 def test_whole_stack():
     labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.lc_env()
-    test_env.update({'labels': labels})
+    test_env = lc.make_env(labels=labels)
     
     cmd = """(set-name #:labels labels
                        #:target (interval #:index 0 #:name "a")
