@@ -3,6 +3,5 @@
 + changes resulting from conversion with KJB 2/14/17
   2. change reading/writing to file to create a pure racket file and a YAML
      metadata file
-  3. change reference in CorrectionStack to label_file to a hash of that file
   4. add syntax to apply operations without explicit call to 
      CorrectionStack.push()

@@ -5,16 +5,19 @@ import tempfile
 import codecs
 import yaml
 import uuid
+import hashlib
 
 __version__ = "0.1"
 
+BUFF_SIZE = 65536 # 64kb
+
 class CorrectionStack:
-    def __init__(self, labels, label_file=None, apply=False,
+    def __init__(self, labels, event_file, apply=False,
                  corr_file=None, dir=None, no_file=False):
         """Creates a CorrectionStack.
         
            labels -- a list of dicts denoted event data
-           label_file -- filename string
+           event_file -- filename string
            apply -- bool; if True corrections in corr_file are applied
            corr_file -- filename string; if None, a tempfile is made
            dir -- directory in which to create tempfile
@@ -35,7 +38,7 @@ class CorrectionStack:
             self.written = self.pc
             self.dirty = True
             self.uuid = str(uuid.uuid4())
-            self.label_file = label_file
+            self.evfile_hash = _buff_hash_file(event_file)
         else:
             self.read_from_file(corr_file, already_applied=(not apply))
             if apply:
@@ -52,7 +55,7 @@ class CorrectionStack:
             file_data = yaml.safe_load(fp)
             self.uuid = file_data['uuid']
             self.stack = file_data['operations']
-            self.label_file = file_data['label_file']
+            self.evfile_hash = file_data['evfile_hash']
         self.corr_file = file
         self.written = len(self.stack) - 1
         self.dirty = False
@@ -69,7 +72,7 @@ class CorrectionStack:
             file = self.corr_file
         with codecs.open(file, 'w', encoding='utf-8') as fp:
             file_data = {'uuid': self.uuid,
-                         'label_file': self.label_file,
+                         'evfile_hash': self.evfile_hash,
                          'operations': self.stack[:self.pc + 1]}
             header = """# corrections file using YAML syntax\n---\n"""
             fp.write(header)
@@ -462,3 +465,12 @@ def _grouper(iterable, n):
         return itertools.izip_longest(*args)
     except AttributeError: # python 2/3 support
         return itertools.zip_longest(*args)
+
+def _buff_hash_file(filename):
+    with open(filename, 'rb') as file:
+        data = file.read(BUFF_SIZE)
+        hash = hashlib.sha1()
+        while data:
+            hash.update(data)
+            data = file.read(BUFF_SIZE)
+    return hash.hexdigest()
