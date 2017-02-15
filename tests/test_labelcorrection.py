@@ -595,11 +595,26 @@ def test_CS_delete():
                             event_file=tf.name,
                             no_file=True)
     
+    cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
+    assert len(cs.labels) == 5
+    assert cs.labels[0]['start'] == 0.5
+    assert cs.labels[0]['stop'] == 0.9
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[0]['tier'] == 'spam'
+    
     cs.delete(0)
-    assert len(cs.labels) == 3
-    assert cs.labels[0]['start'] == 2.1
-    assert cs.labels[0]['stop'] == 3.5
-    assert cs.labels[0]['name'] == 'b'
+    assert len(cs.labels) == 4
+    assert cs.labels[0]['start'] == 1.0
+    assert cs.labels[0]['stop'] == 2.1
+    assert cs.labels[0]['name'] == 'a'
+    
+    cs.undo()
+    # extra data associated with deleted item are restored
+    assert len(cs.labels) == 5
+    assert cs.labels[0]['start'] == 0.5
+    assert cs.labels[0]['stop'] == 0.9
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[0]['tier'] == 'spam'
 
     os.remove(tf.name)
 
