@@ -263,17 +263,19 @@ def test_CS_init(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            dir=tmpdir.strpath)
-    assert cs.labels == labels
-    assert os.path.exists(cs.corr_file)
-    assert cs.corr_file[-5:] == '.corr'
-    
+                            ops_file=tf.name,
+                            load=False)
+    assert cs.labels == TEST_LABELS
+    assert cs.file == tf.name
+    assert len(cs.stack) == 0
+    assert cs.pc == -1
+        
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name)
+                            ops_file=tf.name,
+                            load=True)
     assert cs.labels == TEST_LABELS
-    assert cs.corr_file == tf.name
-    assert os.path.exists(cs.corr_file)
+    assert cs.file == tf.name
     assert len(cs.stack) == 2
     assert cs.stack[0] == TEST_OPS[0]
     assert cs.stack[1] == TEST_OPS[1]
@@ -282,9 +284,10 @@ def test_CS_init(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
-    assert cs.corr_file == tf.name
+    assert cs.file == tf.name
     assert cs.pc == len(cs.stack) - 1
     assert cs.labels[1] == TEST_LABELS[1]
     assert cs.labels[3] == TEST_LABELS[3]
@@ -299,15 +302,18 @@ def test_CS_read_from_file(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            dir=tmpdir.strpath)
-    cs.read_from_file(tf.name)
+                            ops_file=tf.name,
+                            load=False)
+    cs.read_from_file(tf.name, apply=False)
+    # note that this is a bad state
     assert cs.pc == 1
     assert cs.labels == TEST_LABELS
     assert cs.stack == TEST_OPS
     
-    cs.read_from_file(tf.name, already_applied=False)
-    assert cs.pc == -1
-    assert cs.labels == TEST_LABELS
+    cs.read_from_file(tf.name, apply=True)
+    assert cs.pc == 1
+    assert cs.labels[0]['name'] == 'q'
+    assert cs.labels[2]['stop'] == 4.5
     assert cs.stack == TEST_OPS
     
     os.remove(tf.name)
@@ -318,15 +324,20 @@ def test_CS_write_to_file(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(new_cmd)
     os.remove(tf.name)
     cs.write_to_file()
+    assert os.path.exists(cs.file)
+    assert os.path.exists(cs.file + '.yaml')
+    
     cs_new = lc.CorrectionStack(labels=labels,
                                 event_file=tf.name,
-                                corr_file=tf.name,
+                                ops_file=tf.name,
+                                load=True,
                                 apply=True)
     assert len(cs_new.stack) == 3
     assert cs_new.stack == cs.stack
@@ -342,7 +353,8 @@ def test_CS_undo_and_redo(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels
                            #:target (interval #:index 1 #:name "b")
@@ -400,7 +412,8 @@ def test_CS_push(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
@@ -430,7 +443,8 @@ def test_CS_peek(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
     p = cs.peek() # default is to show op at pc, which is last one applied
     assert p == TEST_OPS[1]
@@ -452,7 +466,8 @@ def test_CS__apply(tmpdir):
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            corr_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels
                            #:target (interval #:index 1 #:name "b")
@@ -470,12 +485,15 @@ def test_CS_redo_all(tmpdir):
 
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            dir=tmpdir.strpath)
-    cs.read_from_file(tf.name, already_applied=False)
+                            ops_file=tf.name,
+                            load=False)
+    cs.read_from_file(tf.name, apply=False)
     # none of the stack has been applied
     assert cs.labels[0]['name'] == TEST_LABELS[0]['name'] # 'a'
     assert cs.labels[2]['stop'] == TEST_LABELS[2]['stop'] # 4.2
     
+    # have to set this up manually
+    cs.pc = -1
     cs.redo_all()
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
@@ -490,9 +508,11 @@ def test_CS_rename():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.rename(0, 'q')
+    assert len(cs.stack) == 1
     assert cs.labels[0]['name'] == 'q'
     
     os.remove(tf.name)
@@ -503,9 +523,11 @@ def test_CS_set_start():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.set_start(0, 1.6)
+    assert len(cs.stack) == 1
     assert cs.labels[0]['start'] == 1.6
 
     os.remove(tf.name)
@@ -516,9 +538,11 @@ def test_CS_set_stop():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.set_stop(0, 1.8)
+    assert len(cs.stack) == 1
     assert cs.labels[0]['stop'] == 1.8
 
     os.remove(tf.name)
@@ -529,9 +553,11 @@ def test_CS_merge_next():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.merge_next(0, new_name='q')
+    assert len(cs.stack) == 1
     assert len(cs.labels) == 3
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 3.5
@@ -549,9 +575,11 @@ def test_CS_split():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.split(0, 1.8, 'a1', 'a2')
+    assert len(cs.stack) == 1
     assert len(cs.labels) == 5
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 1.8
@@ -573,7 +601,8 @@ def test_CS_delete():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
     assert len(cs.labels) == 5
@@ -583,6 +612,7 @@ def test_CS_delete():
     assert cs.labels[0]['tier'] == 'spam'
     
     cs.delete(0)
+    assert len(cs.stack) == 2
     assert len(cs.labels) == 4
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 2.1
@@ -604,9 +634,11 @@ def test_CS_create():
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
-                            no_file=True)
+                            ops_file=tf.name,
+                            load=False)
     
     cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
+    assert len(cs.stack) == 1
     assert len(cs.labels) == 5
     assert cs.labels[0]['start'] == 0.5
     assert cs.labels[0]['stop'] == 0.9

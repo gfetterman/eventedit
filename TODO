@@ -4,6 +4,5 @@
   1. replace list+pc organization with undo + redo stacks
   2. option option for kwargs to lc_env and lass in labels that way
   4. remove event_file from init, and hash labels directly
-  5. remove temp_file, dir, and no_file from init
   6. write context managers (enter and exit) for stack
   7. make merge handle intervening unlabeled time by including starts & stops

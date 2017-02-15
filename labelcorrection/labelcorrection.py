@@ -12,68 +12,60 @@ __version__ = "0.1"
 BUFF_SIZE = 65536 # 64kb
 
 class CorrectionStack:
-    def __init__(self, labels, event_file, apply=False,
-                 corr_file=None, dir=None, no_file=False):
+    def __init__(self, labels, event_file, ops_file, load, apply=False):
         """Creates a CorrectionStack.
         
            labels -- a list of dicts denoted event data
            event_file -- filename string
-           apply -- bool; if True corrections in corr_file are applied
-           corr_file -- filename string; if None, a tempfile is made
-           dir -- directory in which to create tempfile
-           no_file -- bool; if True, no file is created or used"""
+           ops_file -- filename string to save operations
+           load -- bool; if True, load from ops_file
+           apply -- bool; if True and if load, apply corrections in ops_file"""
         self.labels = labels
-        if corr_file is None:
-            if no_file:
-                self.corr_file = None
-            else:
-                temp_file = tempfile.NamedTemporaryFile(mode='w',
-                                                        suffix='.corr',
-                                                        dir=dir,
-                                                        delete=False)
-                temp_file.close()
-                self.corr_file = temp_file.name
+        self.file = ops_file
+        if load:
+            self.read_from_file(apply=apply)
+        else:
             self.stack = []
             self.pc = -1
             self.uuid = str(uuid.uuid4())
             self.evfile_hash = _buff_hash_file(event_file)
-        else:
-            self.read_from_file(corr_file, already_applied=(not apply))
-            if apply:
-                self.redo_all()
     
-    def read_from_file(self, file=None, already_applied=True):
+    def read_from_file(self, file=None, apply=False):
         """Read a stack of corrections plus metadata from file.
            
            file -- if not present, use self.file
-           already_applied -- bool; if False, apply loaded corrections"""
-        if file is None:
-            file = self.corr_file
-        with codecs.open(file, 'r', encoding='utf-8') as fp:
+           apply -- bool; if True, apply loaded corrections
+                          if False, assume corrections already applied"""
+        if file:
+            self.file = file
+        with codecs.open(self.file, 'r', encoding='utf-8') as fp:
             self.stack = []
             for op in fp:
                 if op != '\n':
                     self.stack.append(op.strip())
-        with codecs.open((file + '.yaml'), 'r', encoding='utf-8') as mdfp:
+        meta_name = self.file + '.yaml'
+        with codecs.open(meta_name, 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
             self.evfile_hash = file_data['evfile_hash']
-        self.corr_file = file
-        if already_applied:
-            self.pc = len(self.stack) - 1
-        else:
+        if apply:
             self.pc = -1
+            self.redo_all()
+        else:
+            self.pc = len(self.stack) - 1
+            
     
     def write_to_file(self, file=None):
         """Write stack of corrections plus metadata to file.
            
            file -- if not present, use self.file"""
-        if file is None:
-            file = self.corr_file
-        with codecs.open(file, 'w', encoding='utf-8') as fp:
+        if file:
+            self.file = file
+        with codecs.open(self.file, 'w', encoding='utf-8') as fp:
             for op in self.stack[:self.pc + 1]:
                 fp.write(op + '\n')
-        with codecs.open((file + '.yaml'), 'w', encoding='utf-8') as mdfp:
+        meta_name = self.file + '.yaml'
+        with codecs.open(meta_name, 'w', encoding='utf-8') as mdfp:
             file_data = {'uuid': self.uuid,
                          'evfile_hash': self.evfile_hash}
             header = """# corrections file using YAML syntax\n---\n"""
