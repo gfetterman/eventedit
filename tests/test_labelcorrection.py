@@ -497,7 +497,7 @@ def test_CS_redo_all(tmpdir):
                             event_file=tf.name,
                             dir=tmpdir.strpath)
     cs.read_from_file(tf.name, already_applied=False)
-    # none of the stack 
+    # none of the stack has been applied
     assert cs.labels[0]['name'] == TEST_LABELS[0]['name'] # 'a'
     assert cs.labels[2]['stop'] == TEST_LABELS[2]['stop'] # 4.2
     
@@ -507,7 +507,7 @@ def test_CS_redo_all(tmpdir):
     
     os.remove(tf.name)
 
-# test code generators
+# test operations
 
 def test_CS_rename():
     labels = copy.deepcopy(TEST_LABELS)
