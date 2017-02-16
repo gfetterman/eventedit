@@ -295,6 +295,71 @@ def test_CS_init(tmpdir):
     
     os.remove(tf.name)
 
+def test_context_manager(tmpdir):
+    labels = copy.deepcopy(TEST_LABELS)
+    tf = make_corr_file(tmpdir)
+    
+    # exception is passed through, and .bak file is created
+    with pytest.raises(ZeroDivisionError):
+        with lc.CorrectionStack(labels=labels,
+                                event_file=tf.name,
+                                ops_file=tf.name,
+                                load=True) as cs:
+            cs.rename(3, 'eggs')
+            x = 3 / 0
+    assert os.path.exists(tf.name + '.bak')
+    
+    # .bak file contains all operations in stack at time of exception
+    labels = copy.deepcopy(TEST_LABELS)
+    assert labels[3]['name'] == 'd'
+    with lc.CorrectionStack(labels=labels,
+                            event_file=tf.name,
+                            ops_file=(tf.name + '.bak'),
+                            load=True,
+                            apply=True) as cs:
+        assert cs.labels[0]['name'] == 'q'
+        assert cs.labels[2]['stop'] == 4.5
+        assert cs.labels[3]['name'] == 'eggs'
+    
+    # regular file doesn't contain state written to .bak file
+    labels = copy.deepcopy(TEST_LABELS)
+    assert labels[3]['name'] == 'd'
+    with lc.CorrectionStack(labels=labels,
+                            event_file=tf.name,
+                            ops_file=tf.name,
+                            load=True,
+                            apply=True) as cs:
+        assert cs.labels[0]['name'] == 'q'
+        assert cs.labels[2]['stop'] == 4.5
+        assert cs.labels[3]['name'] == 'd'
+    
+    # regular exit doesn't create .bak file
+    tf2 = make_corr_file(tmpdir)
+    labels = copy.deepcopy(TEST_LABELS)
+    assert labels[3]['name'] == 'd'
+    with lc.CorrectionStack(labels=labels,
+                            event_file=tf2.name,
+                            ops_file=tf2.name,
+                            load=True,
+                            apply=True) as cs:
+        cs.rename(3, 'eggs')
+    assert not os.path.exists(tf2.name + '.bak')
+    
+    # regular exit writes entire stack to regular file
+    labels = copy.deepcopy(TEST_LABELS)
+    assert labels[3]['name'] == 'd'
+    with lc.CorrectionStack(labels=labels,
+                            event_file=tf2.name,
+                            ops_file=tf2.name,
+                            load=True,
+                            apply=True) as cs:
+        assert cs.labels[0]['name'] == 'q'
+        assert cs.labels[2]['stop'] == 4.5
+        assert cs.labels[3]['name'] == 'eggs'
+
+    os.remove(tf.name + '.bak')
+    os.remove(tf.name)
+
 def test_CS_read_from_file(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)

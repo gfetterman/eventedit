@@ -78,24 +78,26 @@ The following is an example of use with already-loaded Bark event data.
     
     # bark event data: voc_labels
     
-    undo_stack = lc.CorrectionStack(labels=voc_labels.data,
-                                    event_file=voc_labels.path)
+    with lc.CorrectionStack(labels=voc_labels.data,
+                            event_file=voc_labels.path,
+                            ops_file=(voc_labels.name + '.corr'),
+                            load=False) as cs:
+        cs.labels[55]['name']
+        # 'a'
+        cs.rename(index=55, new_name='b')
+        cs.labels[55]['name']
+        # 'b'
+        
+        cs.labels[56]['stop']
+        # 77.5600
+        cs.set_stop(index=56, new_stop=78.19988)
+        cs.labels[56]['stop']
+        # 78.19988
+        
+        cs.undo()
+        cs.labels[56]['stop']
+        # 77.5600
     
-    undo_stack.labels[55]['name']
-    # 'a'
-    undo_stack.rename(index=55, new_name='b')
-    undo_stack.labels[55]['name']
-    # 'b'
-    
-    undo_stack.labels[56]['stop']
-    # 77.5600
-    undo_stack.set_stop(index=56, new_stop=78.19988)
-    undo_stack.labels[56]['stop']
-    # 78.19988
-    
-    undo_stack.undo()
-    undo_stack.labels[56]['stop']
-    # 77.5600
-    
-    filename = voc_labels.name + '.corr'
-    undo_stack.write_to_file(filename)
+    # CorrectionStack doesn't write label data back to file
+    # user is responsible for writing label data themselves
+    voc_labels.write()

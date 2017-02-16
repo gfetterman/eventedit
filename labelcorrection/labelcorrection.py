@@ -6,6 +6,7 @@ import codecs
 import yaml
 import uuid
 import hashlib
+import contextlib
 
 __version__ = "0.1"
 
@@ -29,6 +30,17 @@ class CorrectionStack:
             self.pc = -1
             self.uuid = str(uuid.uuid4())
             self.evfile_hash = _buff_hash_file(event_file)
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, exc_trace):
+        if exc_type is None:
+            self.write_to_file()
+            return True
+        else:
+            self.write_to_file(self.file + '.bak')
+            return False
     
     def read_from_file(self, file=None, apply=False):
         """Read a stack of corrections plus metadata from file.
