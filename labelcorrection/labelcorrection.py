@@ -9,7 +9,7 @@ import hashlib
 import contextlib
 import collections
 
-__version__ = "0.1"
+__version__ = "0.2"
 
 BUFF_SIZE = 65536 # 64kb
 
