@@ -7,6 +7,7 @@ import yaml
 import uuid
 import hashlib
 import contextlib
+import collections
 
 __version__ = "0.1"
 
@@ -26,8 +27,8 @@ class CorrectionStack:
         if load:
             self.read_from_file(apply=apply)
         else:
-            self.stack = []
-            self.pc = -1
+            self.undo_stack = collections.deque()
+            self.redo_stack = collections.deque()
             self.uuid = str(uuid.uuid4())
             self.evfile_hash = _buff_hash_file(event_file)
     
@@ -51,21 +52,19 @@ class CorrectionStack:
         if file:
             self.file = file
         with codecs.open(self.file, 'r', encoding='utf-8') as fp:
-            self.stack = []
+            self.undo_stack = collections.deque()
+            self.redo_stack = collections.deque()
             for op in fp:
                 if op != '\n':
-                    self.stack.append(op.strip())
+                    if apply:
+                        self.push(op.strip())
+                    else:
+                        self.undo_stack.append(op.strip())
         meta_name = self.file + '.yaml'
         with codecs.open(meta_name, 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
             self.evfile_hash = file_data['evfile_hash']
-        if apply:
-            self.pc = -1
-            self.redo_all()
-        else:
-            self.pc = len(self.stack) - 1
-            
     
     def write_to_file(self, file=None):
         """Write stack of corrections plus metadata to file.
@@ -74,7 +73,7 @@ class CorrectionStack:
         if file:
             self.file = file
         with codecs.open(self.file, 'w', encoding='utf-8') as fp:
-            for op in self.stack[:self.pc + 1]:
+            for op in self.undo_stack:
                 fp.write(op + '\n')
         meta_name = self.file + '.yaml'
         with codecs.open(meta_name, 'w', encoding='utf-8') as mdfp:
@@ -85,46 +84,51 @@ class CorrectionStack:
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
-        """Undoes last applied correction.
+        """Undoes last executed command.
            
-           No effect if pc is at bottom of stack.
-           If dipping below written pointer, set dirty flag."""
-        if self.pc >= 0:
-            self._apply(invert(self.stack[self.pc]))
-            self.pc -= 1
+           No effect if no operations to undo."""
+        try:
+            cmd = self.undo_stack.pop()
+        except IndexError:
+            pass
+        else:
+            inv = invert(cmd)
+            self.redo_stack.append(inv)
+            self._apply(inv)
     
     def redo(self):
-        """Redoes next undone correction.
+        """Redoes next undone command.
            
-           No effect if pc is at top of stack."""
-        stacklen = len(self.stack)
-        if stacklen > 0 and self.pc < stacklen - 1:
-            self.pc += 1
-            self._apply(self.stack[self.pc])
+           No effect if no operations to redo."""
+        try:
+            cmd = self.redo_stack.pop()
+        except IndexError:
+            pass
+        else:
+            inv = invert(cmd)
+            self.undo_stack.append(inv)
+            self._apply(inv)
     
     def push(self, cmd):
-        """Adds command string to top of stack and execute it.
+        """Executes command.
            
-           If pc not at top of stack, discards entire stack above it."""
-        if self.pc >= 0 and self.pc < len(self.stack) - 1:
-            self.stack = self.stack[:(self.pc + 1)]
-        self.stack.append(cmd)
-        self.pc += 1
+           If there are commands in the redo stack, they are discarded."""
+        if self.redo_stack:
+            self.redo_stack = collections.deque()
+        self.undo_stack.append(cmd)
         self._apply(cmd)
     
-    def peek(self, index=None):
-        """Returns command string at top of stack, or index."""
-        if index is None:
-            index = self.pc
-        return self.stack[index]
+    def peek(self, index=-1):
+        """Returns command string at top of undo stack, or index."""
+        return self.undo_stack[index]
     
     def _apply(self, cmd):
         """Executes command string, applied to labels."""
         evaluate(parse(cmd), make_env(labels=self.labels))
     
     def redo_all(self):
-        """Executes all commands above pc in stack."""
-        while self.pc < len(self.stack) - 1:
+        """Redoes all undone commands."""
+        while self.redo_stack:
             self.redo()
     
     # operations

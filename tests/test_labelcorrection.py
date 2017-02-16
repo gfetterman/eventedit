@@ -266,8 +266,7 @@ def test_CS_init(tmpdir):
                             load=False)
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
-    assert len(cs.stack) == 0
-    assert cs.pc == -1
+    assert len(cs.undo_stack) == 0
         
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
@@ -275,11 +274,10 @@ def test_CS_init(tmpdir):
                             load=True)
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
-    assert len(cs.stack) == 2
-    assert cs.stack[0] == TEST_OPS[0]
-    assert cs.stack[1] == TEST_OPS[1]
+    assert len(cs.undo_stack) == 2
+    assert cs.undo_stack[0] == TEST_OPS[0]
+    assert cs.undo_stack[1] == TEST_OPS[1]
     assert cs.uuid == '0'
-    assert cs.pc == 1
     
     cs = lc.CorrectionStack(labels=labels,
                             event_file=tf.name,
@@ -287,7 +285,6 @@ def test_CS_init(tmpdir):
                             load=True,
                             apply=True)
     assert cs.file == tf.name
-    assert cs.pc == len(cs.stack) - 1
     assert cs.labels[1] == TEST_LABELS[1]
     assert cs.labels[3] == TEST_LABELS[3]
     assert cs.labels[0]['name'] == 'q'
@@ -370,15 +367,13 @@ def test_CS_read_from_file(tmpdir):
                             load=False)
     cs.read_from_file(tf.name, apply=False)
     # note that this is a bad state
-    assert cs.pc == 1
     assert cs.labels == TEST_LABELS
-    assert cs.stack == TEST_OPS
+    assert list(cs.undo_stack) == TEST_OPS
     
     cs.read_from_file(tf.name, apply=True)
-    assert cs.pc == 1
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
-    assert cs.stack == TEST_OPS
+    assert list(cs.undo_stack) == TEST_OPS
     
     os.remove(tf.name)
 
@@ -403,9 +398,9 @@ def test_CS_write_to_file(tmpdir):
                                 ops_file=tf.name,
                                 load=True,
                                 apply=True)
-    assert len(cs_new.stack) == 3
-    assert cs_new.stack == cs.stack
-    assert cs_new.stack[-1] == new_cmd
+    assert len(cs_new.undo_stack) == 3
+    assert cs_new.undo_stack == cs.undo_stack
+    assert cs_new.undo_stack[-1] == new_cmd
     assert cs_new.evfile_hash == cs.evfile_hash
     assert cs_new.uuid == cs.uuid
     
@@ -424,46 +419,54 @@ def test_CS_undo_and_redo(tmpdir):
                            #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs.push(new_cmd)
+    assert len(cs.undo_stack) == 3
+    assert len(cs.redo_stack) == 0
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
 
     cs.undo() # undo new_cmd
-    assert cs.pc == len(cs.stack) - 2
+    assert len(cs.undo_stack) == 2
+    assert len(cs.redo_stack) == 1
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
     
     cs.undo() # undo TEST_OPS[1]
-    assert cs.pc == len(cs.stack) - 3
+    assert len(cs.undo_stack) == 1
+    assert len(cs.redo_stack) == 2
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "q"
     
     cs.undo() # undo TEST_OPS[0]
-    cs.undo() # undo actions when at tail do nothing
+    cs.undo() # undo actions when undo_stack is empty do nothing
     cs.undo()
-    assert cs.pc == -1
+    assert len(cs.undo_stack) == 0
+    assert len(cs.redo_stack) == 3
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "a"
     
     cs.redo() # redo TEST_OPS[0]
-    assert cs.pc == 0
+    assert len(cs.undo_stack) == 1
+    assert len(cs.redo_stack) == 2
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "q"
     
     cs.redo() # redo TEST_OPS[1]
-    assert cs.pc == 1
+    assert len(cs.undo_stack) == 2
+    assert len(cs.redo_stack) == 1
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
 
     cs.redo() # redo new_cmd
-    cs.redo() # redo actions when at head do nothing
+    cs.redo() # redo actions when redo_stack is empty do nothing
     cs.redo()
-    assert cs.pc == 2
+    assert len(cs.undo_stack) == 3
+    assert len(cs.redo_stack) == 0
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
@@ -494,7 +497,7 @@ def test_CS_push(tmpdir):
     cs.undo()
     cs.undo()
     cs.push(new_cmd) # TEST_OPS[1] is gone; new_cmd now at head of stack
-    assert len(cs.stack) == 2
+    assert len(cs.undo_stack) == 2
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "q"
@@ -510,11 +513,11 @@ def test_CS_peek(tmpdir):
                             ops_file=tf.name,
                             load=True,
                             apply=True)
-    p = cs.peek() # default is to show op at pc, which is last one applied
+    p = cs.peek() # default: show op at top of undo_stack
     assert p == TEST_OPS[1]
     
     with pytest.raises(IndexError):
-        p = cs.peek(len(cs.stack) + 10)
+        p = cs.peek(len(cs.undo_stack) + 10)
     
     with pytest.raises(IndexError):
         p = cs.peek(-10)
@@ -537,7 +540,7 @@ def test_CS__apply(tmpdir):
                            #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs._apply(new_cmd)
-    # this screws up the pc tracking - the stack is now in an undefined state
+    # the stack is now in an undefined state
     # but we can still check that _apply performed the new_cmd operation
     assert cs.labels[1]['name'] == 'z'
     
@@ -557,7 +560,8 @@ def test_CS_redo_all(tmpdir):
     assert cs.labels[2]['stop'] == TEST_LABELS[2]['stop'] # 4.2
     
     # have to set this up manually
-    cs.pc = -1
+    for op in cs.undo_stack:
+        cs.redo_stack.append(lc.invert(op))
     cs.redo_all()
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
@@ -576,7 +580,7 @@ def test_CS_rename():
                             load=False)
     
     cs.rename(0, 'q')
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert cs.labels[0]['name'] == 'q'
     
     os.remove(tf.name)
@@ -591,7 +595,7 @@ def test_CS_set_start():
                             load=False)
     
     cs.set_start(0, 1.6)
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert cs.labels[0]['start'] == 1.6
 
     os.remove(tf.name)
@@ -606,7 +610,7 @@ def test_CS_set_stop():
                             load=False)
     
     cs.set_stop(0, 1.8)
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert cs.labels[0]['stop'] == 1.8
 
     os.remove(tf.name)
@@ -621,7 +625,7 @@ def test_CS_merge_next():
                             load=False)
     
     cs.merge_next(0, new_name='q')
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert len(cs.labels) == 3
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 3.5
@@ -643,7 +647,7 @@ def test_CS_split():
                             load=False)
     
     cs.split(0, 1.8, 'a1', 'a2')
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert len(cs.labels) == 5
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 1.8
@@ -676,7 +680,7 @@ def test_CS_delete():
     assert cs.labels[0]['tier'] == 'spam'
     
     cs.delete(0)
-    assert len(cs.stack) == 2
+    assert len(cs.undo_stack) == 2
     assert len(cs.labels) == 4
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 2.1
@@ -702,7 +706,7 @@ def test_CS_create():
                             load=False)
     
     cs.create(0, 0.5, stop=0.9, name='q', tier='spam')
-    assert len(cs.stack) == 1
+    assert len(cs.undo_stack) == 1
     assert len(cs.labels) == 5
     assert cs.labels[0]['start'] == 0.5
     assert cs.labels[0]['stop'] == 0.9
