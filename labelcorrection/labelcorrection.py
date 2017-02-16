@@ -237,9 +237,17 @@ class CorrectionStack:
         other_args = {'new_name': new_name,
                       'new_sep': None,
                       'new_next_name': None}
+        columns = [c for c in self.labels[index].keys()
+                   if c not in ('start', 'stop', 'name')]
+        for c in columns:
+            target[c] = self.labels[index][c]
+            target['next_' + c] = self.labels[index + 1][c]
+            other_args['new_' + c] = None
+            other_args['new_next_' + c] = None
         return self._gen_code(op, target_name, target, other_args)
 
-    def codegen_split(self, index, new_sep, new_name=None, new_next_name=None):
+    def codegen_split(self, index, new_sep, new_name=None,
+                      new_next_name=None, **kwargs):
         """Generates command string to split an interval in two.
            
            new_sep -- number; must be within interval's limits
@@ -257,6 +265,13 @@ class CorrectionStack:
         other_args = {'new_name': new_name,
                       'new_sep': new_sep,
                       'new_next_name': new_next_name}
+        columns = [c for c in self.labels[index].keys()
+                   if c not in ('start', 'stop', 'name')]
+        for c in columns:
+            target[c] = self.labels[index][c]
+            target['next_' + c] = None
+            other_args['new_' + c] = kwargs['new_' + c]
+            other_args['new_next_' + c] = kwargs['new_next_' + c]
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_delete(self, index):
@@ -308,6 +323,11 @@ def _split(labels, target, new_name, new_sep, new_next_name, **kwargs):
     new_point['name'] = new_next_name
     labels[index]['stop'] = new_sep
     labels[index]['name'] = new_name
+    for key,arg in kwargs:
+        if key[:9] == 'new_next_':
+            new_point[key[9:]] = arg
+        elif key[:4] == 'new_':
+            labels[index][key[4:]] = arg
     labels.insert(index + 1, new_point)
 
 def _delete(labels, target, **kwargs):
