@@ -119,11 +119,6 @@ class CorrectionStack:
         """Executes command string, applied to labels."""
         evaluate(parse(cmd), make_env(labels=self.labels))
     
-    def redo_all(self):
-        """Redoes all undone commands."""
-        while self.redo_stack:
-            self.redo()
-    
     # operations
     
     def rename(self, index, new_name):

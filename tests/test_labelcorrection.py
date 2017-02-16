@@ -577,28 +577,6 @@ def test_CS__apply(tmpdir):
     
     os.remove(tf.name)
 
-def test_CS_redo_all(tmpdir):
-    labels = copy.deepcopy(TEST_LABELS)
-    tf = make_corr_file(tmpdir)
-
-    cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
-                            ops_file=tf.name,
-                            load=False)
-    cs.read_from_file(tf.name, apply=False)
-    # none of the stack has been applied
-    assert cs.labels[0]['name'] == TEST_LABELS[0]['name'] # 'a'
-    assert cs.labels[2]['stop'] == TEST_LABELS[2]['stop'] # 4.2
-    
-    # have to set this up manually
-    for op in cs.undo_stack:
-        cs.redo_stack.append(lc.invert(op))
-    cs.redo_all()
-    assert cs.labels[0]['name'] == 'q'
-    assert cs.labels[2]['stop'] == 4.5
-    
-    os.remove(tf.name)
-
 # test operations
 
 def test_CS_rename():
