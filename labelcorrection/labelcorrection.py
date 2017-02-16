@@ -83,9 +83,7 @@ class CorrectionStack:
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
-        """Undoes last executed command.
-           
-           No effect if no operations to undo."""
+        """Undoes last executed command, if any."""
         try:
             cmd = self.undo_stack.pop()
         except IndexError:
@@ -96,9 +94,7 @@ class CorrectionStack:
             self._apply(inv)
     
     def redo(self):
-        """Redoes next undone command.
-           
-           No effect if no operations to redo."""
+        """Redoes last undone command, if any."""
         try:
             cmd = self.redo_stack.pop()
         except IndexError:
@@ -109,9 +105,7 @@ class CorrectionStack:
             self._apply(inv)
     
     def push(self, cmd):
-        """Executes command.
-           
-           If there are commands in the redo stack, they are discarded."""
+        """Executes command, discarding redo stack."""
         if self.redo_stack:
             self.redo_stack = collections.deque()
         self.undo_stack.append(cmd)
