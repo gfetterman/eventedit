@@ -318,11 +318,11 @@ def _split(labels, target, new_name, new_sep, new_next_name, **kwargs):
     new_point['name'] = new_next_name
     labels[index]['stop'] = new_sep
     labels[index]['name'] = new_name
-    for key,arg in kwargs:
+    for key in kwargs:
         if key[:9] == 'new_next_':
-            new_point[key[9:]] = arg
+            new_point[key[9:]] = kwargs[key]
         elif key[:4] == 'new_':
-            labels[index][key[4:]] = arg
+            labels[index][key[4:]] = kwargs[key]
     labels.insert(index + 1, new_point)
 
 def _delete(labels, target, **kwargs):

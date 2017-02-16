@@ -51,6 +51,17 @@ def test__split():
     assert labels[4]['start'] == 4.8
     assert labels[4]['stop'] == 5.0
     assert labels[4]['name'] == 'e'
+    
+    # _split allows assignment to any columns the events have
+    labels.append({'start': 5.5, 'stop': 6.0, 'name': 'c3', 'tier': 'old_tier'})
+    lc._split(labels, {'index': 5}, 'c3', 5.7, 'c12', new_next_tier='new_tier')
+    assert len(labels) == 7
+    assert labels[5]['stop'] == 5.7
+    assert labels[5]['name'] == 'c3'
+    assert labels[5]['tier'] == 'old_tier'
+    assert labels[6]['start'] == 5.7
+    assert labels[6]['name'] == 'c12'
+    assert labels[6]['tier'] == 'new_tier'
 
 def test__delete():
     labels = copy.deepcopy(TEST_LABELS)
@@ -624,16 +635,31 @@ def test_CS_merge_next():
                             ops_file=tf.name,
                             load=False)
     
+    for i in range(len(labels)):
+        labels[i]['tier'] = 'tier' + str(i)
     cs.merge_next(0, new_name='q')
     assert len(cs.undo_stack) == 1
     assert len(cs.labels) == 3
     assert cs.labels[0]['start'] == 1.0
     assert cs.labels[0]['stop'] == 3.5
     assert cs.labels [0]['name'] == 'q'
+    assert cs.labels[0]['tier'] == 'tier0'
+    assert cs.labels[1]['tier'] == 'tier2'
+    
+    # merge saves all column info, for restoration on undo
+    cs.undo()
+    assert cs.labels[0]['start'] == 1.0
+    assert cs.labels[0]['stop'] == 2.1
+    assert cs.labels[0]['name'] == 'a'
+    assert cs.labels[0]['tier'] == 'tier0'
+    assert cs.labels[1]['start'] == 2.1
+    assert cs.labels[1]['stop'] == 3.5
+    assert cs.labels[1]['name'] == 'b'
+    assert cs.labels[1]['tier'] == 'tier1'
     
     cs.merge_next(0)
-    assert len(cs.labels) == 2
-    assert cs.labels[0]['name'] == 'qc'
+    assert len(cs.labels) == 3
+    assert cs.labels[0]['name'] == 'ab'
 
     os.remove(tf.name)
 
@@ -660,6 +686,8 @@ def test_CS_split():
     assert len(cs.labels) == 6
     assert cs.labels[0]['name'] == 'a1'
     assert cs.labels[1]['name'] == ''
+    
+    
 
     os.remove(tf.name)
 
