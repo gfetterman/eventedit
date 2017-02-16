@@ -2,4 +2,3 @@
 
 + requests/refactors from meeting with KJB 2/15/17:
   4. remove event_file from init, and hash labels directly
-  7. make merge handle intervening unlabeled time by including starts & stops

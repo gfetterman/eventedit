@@ -42,9 +42,19 @@ def test__merge_next():
 def test__split():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(ValueError):
-        lc._split(labels, {'index': 3}, 'd', 1.0, 'e')
+        lc._split(labels,
+                  {'index': 3},
+                  new_name='d',
+                  new_stop=1.0,
+                  new_next_start=1.0,
+                  new_next_name='e')
     
-    lc._split(labels, {'index': 3}, 'd', 4.8, 'e')
+    lc._split(labels,
+              {'index': 3},
+              new_name='d',
+              new_stop=4.8,
+              new_next_start=4.8,
+              new_next_name='e')
     assert len(labels) == 5
     assert labels[3]['stop'] == 4.8
     assert labels[3]['name'] == 'd'
@@ -54,7 +64,13 @@ def test__split():
     
     # _split allows assignment to any columns the events have
     labels.append({'start': 5.5, 'stop': 6.0, 'name': 'c3', 'tier': 'old_tier'})
-    lc._split(labels, {'index': 5}, 'c3', 5.7, 'c12', new_next_tier='new_tier')
+    lc._split(labels,
+              {'index': 5},
+              new_name='c3',
+              new_stop=5.7,
+              new_next_start=5.7,
+              new_next_name='c12',
+              new_next_tier='new_tier')
     assert len(labels) == 7
     assert labels[5]['stop'] == 5.7
     assert labels[5]['name'] == 'c3'
@@ -174,10 +190,12 @@ def test_whole_stack():
     cmd = """(merge-next #:labels labels
                          #:target (interval-pair #:index 1
                                                  #:name "b"
-                                                 #:sep 3.240
+                                                 #:stop 3.240
+                                                 #:next-start 3.240
                                                  #:next-name "silence")
                          #:new-name null
-                         #:new-sep null
+                         #:new-stop null
+                         #:new-next-start null
                          #:new-next-name null)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS) - 1
@@ -186,10 +204,12 @@ def test_whole_stack():
     cmd = """(split #:labels labels
                     #:target (interval-pair #:index 1
                                             #:name null
-                                            #:sep null
+                                            #:stop null
+                                            #:next-start null
                                             #:next-name null)
                     #:new-name "b"
-                    #:new-sep 3.5
+                    #:new-stop 3.5
+                    #:new-next-start 3.5
                     #:new-next-name "c")"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS)
@@ -660,6 +680,25 @@ def test_CS_merge_next():
     cs.merge_next(0)
     assert len(cs.labels) == 3
     assert cs.labels[0]['name'] == 'ab'
+    
+    # can merge two intervals that don't share a boundary,
+    # and their respective stop/start will be preserved after undo
+    cs.merge_next(1)
+    assert len(cs.labels) == 2
+    assert cs.labels[1]['start'] == 3.5
+    assert cs.labels[1]['stop'] == 5.0
+    assert cs.labels[1]['name'] == 'cd'
+    assert cs.labels[1]['tier'] == 'tier2'
+    cs.undo()
+    assert len(cs.labels) == 3
+    assert cs.labels[1]['start'] == 3.5
+    assert cs.labels[1]['stop'] == 4.2
+    assert cs.labels[1]['name'] == 'c'
+    assert cs.labels[1]['tier'] == 'tier2'
+    assert cs.labels[2]['start'] == 4.7
+    assert cs.labels[2]['stop'] == 5.0
+    assert cs.labels[2]['name'] == 'd'
+    assert cs.labels[2]['tier'] == 'tier3'
 
     os.remove(tf.name)
 
@@ -686,8 +725,6 @@ def test_CS_split():
     assert len(cs.labels) == 6
     assert cs.labels[0]['name'] == 'a1'
     assert cs.labels[1]['name'] == ''
-    
-    
 
     os.remove(tf.name)
 

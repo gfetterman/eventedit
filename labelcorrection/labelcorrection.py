@@ -225,12 +225,14 @@ class CorrectionStack:
         target_name = 'interval_pair'
         target = {'index': index,
                   'name': self.labels[index]['name'],
-                  'sep': self.labels[index]['stop'],
+                  'stop': self.labels[index]['stop'],
+                  'next_start': self.labels[index + 1]['start'],
                   'next_name': self.labels[index + 1]['name']}
         if new_name is None:
             new_name = target['name'] + target['next_name']
         other_args = {'new_name': new_name,
-                      'new_sep': None,
+                      'new_stop': None,
+                      'new_next_start': None,
                       'new_next_name': None}
         columns = [c for c in self.labels[index].keys()
                    if c not in ('start', 'stop', 'name')]
@@ -251,14 +253,16 @@ class CorrectionStack:
         target_name = 'interval_pair'
         target = {'index': index,
                   'name': self.labels[index]['name'],
-                  'sep': None,
-                  'next_name': None}
+                  'stop': self.labels[index]['stop'],
+                  'next_name': None,
+                  'next_start': None,}
         if new_name is None:
             new_name = target['name']
         if new_next_name is None:
             new_next_name = ''
         other_args = {'new_name': new_name,
-                      'new_sep': new_sep,
+                      'new_stop': new_sep,
+                      'new_next_start': new_sep,
                       'new_next_name': new_next_name}
         columns = [c for c in self.labels[index].keys()
                    if c not in ('start', 'stop', 'name')]
@@ -308,16 +312,12 @@ def _merge_next(labels, target, **kwargs):
     labels[index]['name'] = kwargs['new_name']
     labels.pop(index + 1)
 
-def _split(labels, target, new_name, new_sep, new_next_name, **kwargs):
-    if not (new_sep > labels[target['index']]['start'] and
-            new_sep < labels[target['index']]['stop']):
+def _split(labels, target, **kwargs):
+    if not (kwargs['new_stop'] > labels[target['index']]['start'] and
+            kwargs['new_next_start'] < labels[target['index']]['stop']):
         raise ValueError('split point must be within interval')
     index = target['index']
     new_point = copy.deepcopy(labels[index])
-    new_point['start'] = new_sep
-    new_point['name'] = new_next_name
-    labels[index]['stop'] = new_sep
-    labels[index]['name'] = new_name
     for key in kwargs:
         if key[:9] == 'new_next_':
             new_point[key[9:]] = kwargs[key]
