@@ -6,7 +6,6 @@ import codecs
 import yaml
 import uuid
 import hashlib
-import contextlib
 import collections
 
 __version__ = "0.2"
