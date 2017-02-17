@@ -11,7 +11,7 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
 TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:name "a") #:new-name "q")""",
-            """(set-boundary #:labels labels #:target (interval #:index 2 #:bd 4.2) #:which "stop" #:new-bd 4.5)"""]
+            """(set-stop #:labels labels #:target (interval #:index 2 #:bd 4.2)  #:new-bd 4.5)"""]
 
 # test raw label correction operations
 
@@ -180,9 +180,8 @@ def test_whole_stack():
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
-    cmd = """(set-boundary #:labels labels
+    cmd = """(set-start #:labels labels
                            #:target (interval #:index 1 #:bd 3.141)
-                           #:which "start"
                            #:new-bd 2.2)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2

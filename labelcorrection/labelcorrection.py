@@ -7,6 +7,7 @@ import yaml
 import uuid
 import hashlib
 import collections
+import functools
 
 __version__ = "0.2"
 
@@ -180,7 +181,7 @@ class CorrectionStack:
         """Generates command string to move an interval's start.
            
            new_start -- float"""
-        op = 'set_boundary'
+        op = 'set_start'
         target_name = 'interval'
         target = {'index': index,
                   'bd': self.labels[index]['start']}
@@ -191,7 +192,7 @@ class CorrectionStack:
         """Generates command string to move an interval's stop.
            
            new_stop -- float"""
-        op = 'set_boundary'
+        op = 'set_stop'
         target_name = 'interval'
         target = {'index': index,
                   'bd': self.labels[index]['stop']}
@@ -322,7 +323,8 @@ def _create(labels, target, **kwargs):
 # invert operations
 
 INVERSE_TABLE = {'set_name': 'set_name',
-                 'set_boundary': 'set_boundary',
+                 'set_start': 'set_start',
+                 'set_stop': 'set_stop',
                  'merge_next': 'split',
                  'split': 'merge_next',
                  'delete': 'create',
@@ -467,7 +469,8 @@ def parse(cmd):
 def make_env(**kwargs):
     """Returns an environment for s-expression evaluation."""
     env = {'set_name': _set_name,
-           'set_boundary': _set_bd,
+           'set_start': functools.partial(_set_bd, which='start'),
+           'set_stop': functools.partial(_set_bd, which='stop'),
            'merge_next': _merge_next,
            'split': _split,
            'delete': _delete,

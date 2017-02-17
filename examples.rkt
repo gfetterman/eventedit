@@ -8,17 +8,23 @@
           #:target (interval #:index 3 #:name "b")
           #:new-name "a")
 
-;; invocation of set-boundary
-;; it is its own inverse
-(set-boundary #:labels labels
-              #:target (interval #:index 3 #:bd 3.141)
-              #:which "start"
-              #:new-bd 3.131)
+;; invocation of set-start and set-stop
+;; they are their own inverses
+(set-start #:labels labels
+           #:target (interval #:index 3 #:bd 3.141)
+           #:new-bd 3.131)
 
-(set-boundary #:labels labels
-              #:target (interval #:index 3 #:bd 3.131)
-              #:which "start"
-              #:new-bd 3.141)
+(set-start #:labels labels
+           #:target (interval #:index 3 #:bd 3.131)
+           #:new-bd 3.141)
+
+(set-stop #:labels labels
+          #:target (interval #:index 3 #:bd 3.400)
+          #:new-bd 3.450)
+
+(set-stop #:labels labels
+          #:target (interval #:index 3 #:bd 3.450)
+          #:new-bd 3.400)
 
 ;; invocation of merge-next and split
 ;; these are one another's inverses
@@ -26,19 +32,23 @@
             #:target (interval-pair #:index 3
                                     #:name "b"
                                     #:sep 3.240
-                                    #:next-name "silence")
+                                    #:next-name "silence"
+                                    . args)
             #:new-name "q"
             #:new-sep null
-            #:new-next-name null)
+            #:new-next-name null
+            . args)
 
 (split #:labels labels
        #:target (interval-pair #:index 3
                                #:name "q"
                                #:sep null
-                               #:next-name null)
+                               #:next-name null
+                               . args)
         #:new-name "b"
         #:new-sep 3.240
-        #:new-next-name "silence")
+        #:new-next-name "silence"
+        . args)
 
 ;; invocation of delete and create
 ;; these are one another's inverses
