@@ -101,8 +101,7 @@ class CorrectionStack:
     
     def push(self, cmd):
         """Executes command, discarding redo stack."""
-        if self.redo_stack:
-            self.redo_stack = collections.deque()
+        self.redo_stack.clear()
         self.undo_stack.append(cmd)
         self._apply(cmd)
     
