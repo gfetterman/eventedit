@@ -57,8 +57,8 @@ class CorrectionStack:
             for op in fp:
                 if op != '\n':
                     if apply:
-                        self._apply(op.strip())
-                    self.undo_stack.append(op.strip())
+                        self._apply(parse(op.strip()))
+                    self.undo_stack.append(parse(op.strip()))
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
@@ -72,7 +72,7 @@ class CorrectionStack:
             self.file = file
         with codecs.open(self.file, 'w', encoding='utf-8') as fp:
             for op in self.undo_stack:
-                fp.write(op + '\n')
+                fp.write(deparse(op) + '\n')
         with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
             file_data = {'uuid': self.uuid, 'evfile_hash': self.evfile_hash}
             mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
@@ -110,9 +110,9 @@ class CorrectionStack:
         """Returns command string at top of undo stack, or index."""
         return self.undo_stack[index]
     
-    def _apply(self, cmd):
-        """Executes command string, applied to labels."""
-        evaluate(parse(cmd), make_env(labels=self.labels))
+    def _apply(self, s_expr):
+        """Executes s-expression, applied to labels."""
+        evaluate(s_expr, make_env(labels=self.labels))
     
     # operations
     
@@ -147,7 +147,7 @@ class CorrectionStack:
     # code generators
     
     def _gen_code(self, op, target_name, target, other_args):
-        """Generates a command string for the given op.
+        """Generates an s-expression for the given op.
            
            op -- string
            target_name -- string
@@ -164,7 +164,7 @@ class CorrectionStack:
         for k, a in other_args.items():
             ntl.append(KeyArg(k))
             ntl.append(a)
-        return detokenize(write_to_tokens(ntl))
+        return ntl
 
     def codegen_rename(self, index, new_name):
         """Generates command string to rename an interval.
@@ -326,22 +326,21 @@ INVERSE_TABLE = {'set_name': 'set_name',
                  'delete': 'create',
                  'create': 'delete'}
 
-def invert(cmd):
-    """Generates a command string for the inverse of cmd."""
-    ntl = parse(cmd)
-    op = ntl[0]
+def invert(s_expr):
+    """Generates an s-expression for the inverse of s_expr."""
+    op = s_expr[0]
     inverse = INVERSE_TABLE[op]
-    target = ntl[ntl.index('target') + 1]
-    for i in range(len(ntl)):
-        curr = ntl[i]
+    target = s_expr[s_expr.index('target') + 1]
+    for i in range(len(s_expr)):
+        curr = s_expr[i]
         if isinstance(curr, KeyArg) and len(curr) >= 4 and curr[:4] == 'new_':
             oldname = curr[4:]
             oldval = copy.deepcopy(target[target.index(oldname) + 1])
-            target[target.index(oldname) + 1] = copy.deepcopy(ntl[i + 1])
-            ntl[i + 1] = oldval
-    inverse_ntl = [Symbol(inverse)]
-    inverse_ntl.extend(ntl[1:])
-    return detokenize(write_to_tokens(inverse_ntl))
+            target[target.index(oldname) + 1] = copy.deepcopy(s_expr[i + 1])
+            s_expr[i + 1] = oldval
+    inverse_s_expr = [Symbol(inverse)]
+    inverse_s_expr.extend(s_expr[1:])
+    return inverse_s_expr
 
 # reverse parsing
 
@@ -380,6 +379,10 @@ def deatomize(a):
         return str(a)
     else:
         raise ValueError('unknown atomic type: ' + str(a))
+
+def deparse(s_expr):
+    """Turns an s-expression into a command string."""
+    return detokenize(write_to_tokens(s_expr))
 
 # parser & evaluator
 

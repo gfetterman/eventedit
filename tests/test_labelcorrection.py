@@ -11,7 +11,7 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
 TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:value "a") #:new-value "q")""",
-            """(set-stop #:labels labels #:target (interval #:index 2 #:value 4.2)  #:new-value 4.5)"""]
+            """(set-stop #:labels labels #:target (interval #:index 2 #:value 4.2) #:new-value 4.5)"""]
 
 # test raw label correction operations
 
@@ -259,14 +259,19 @@ def test_write_to_tokens():
     ident = lc.read_from_tokens(token_list)
     assert expr == ident
 
+def test_deparse():
+    s_exprs = [lc.parse(op) for op in TEST_OPS]
+    deparsed = [lc.deparse(e) for e in s_exprs]
+    assert deparsed == TEST_OPS
+
 def test_invert():
     cmd = '(merge-next #:target (interval-pair #:index 0 #:name null #:sep null #:next-name null) #:new-name "b" #:new-sep 1.5 #:new-next-name "c")'
     hand_inv = '(split #:target (interval-pair #:index 0 #:name "b" #:sep 1.5 #:next-name "c") #:new-name null #:new-sep null #:new-next-name null)'
-    inv = lc.invert(cmd)
-    assert inv == hand_inv
+    inv = lc.invert(lc.parse(cmd))
+    assert inv == lc.parse(hand_inv)
     
-    ident = lc.invert(lc.invert(cmd))
-    assert cmd == ident
+    ident = lc.invert(lc.invert(lc.parse(cmd)))
+    assert cmd == lc.deparse(ident)
 
 # test CorrectionStack methods
 
@@ -301,8 +306,8 @@ def test_CS_init(tmpdir):
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
     assert len(cs.undo_stack) == 2
-    assert cs.undo_stack[0] == TEST_OPS[0]
-    assert cs.undo_stack[1] == TEST_OPS[1]
+    assert cs.undo_stack[0] == lc.parse(TEST_OPS[0])
+    assert cs.undo_stack[1] == lc.parse(TEST_OPS[1])
     assert cs.uuid == '0'
     
     cs = lc.CorrectionStack(labels=labels,
@@ -394,12 +399,12 @@ def test_CS_read_from_file(tmpdir):
     cs.read_from_file(tf.name, apply=False)
     # note that this is a bad state
     assert cs.labels == TEST_LABELS
-    assert list(cs.undo_stack) == TEST_OPS
+    assert list(cs.undo_stack) == [lc.parse(op) for op in TEST_OPS]
     
     cs.read_from_file(tf.name, apply=True)
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
-    assert list(cs.undo_stack) == TEST_OPS
+    assert list(cs.undo_stack) == [lc.parse(op) for op in TEST_OPS]
     
     os.remove(tf.name)
 
@@ -413,7 +418,7 @@ def test_CS_write_to_file(tmpdir):
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:value "b") #:new-value "z")"""
-    cs.push(new_cmd)
+    cs.push(lc.parse(new_cmd))
     os.remove(tf.name)
     cs.write_to_file()
     assert os.path.exists(cs.file)
@@ -426,7 +431,7 @@ def test_CS_write_to_file(tmpdir):
                                 apply=True)
     assert len(cs_new.undo_stack) == 3
     assert cs_new.undo_stack == cs.undo_stack
-    assert cs_new.undo_stack[-1] == new_cmd
+    assert cs_new.undo_stack[-1] == lc.parse(new_cmd)
     assert cs_new.evfile_hash == cs.evfile_hash
     assert cs_new.uuid == cs.uuid
     
@@ -444,7 +449,7 @@ def test_CS_undo_and_redo(tmpdir):
     new_cmd = """(set-name #:labels labels
                            #:target (interval #:index 1 #:value "b")
                            #:new-value "z")"""
-    cs.push(new_cmd)
+    cs.push(lc.parse(new_cmd))
     assert len(cs.undo_stack) == 3
     assert len(cs.redo_stack) == 0
     assert cs.labels[1]['name'] == "z"
@@ -515,14 +520,14 @@ def test_CS_push(tmpdir):
     new_cmd = """(set-name #:labels labels
                            #:target (interval #:index 1 #:value "b")
                            #:new-value "z")"""
-    cs.push(new_cmd) # push adds new_cmd to head of stack
+    cs.push(lc.parse(new_cmd)) # push adds new_cmd to head of stack
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
     
     cs.undo()
     cs.undo()
-    cs.push(new_cmd) # TEST_OPS[1] is gone; new_cmd now at head of stack
+    cs.push(lc.parse(new_cmd)) # TEST_OPS[1] is gone; new_cmd now at head of stack
     assert len(cs.undo_stack) == 2
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.2
@@ -540,7 +545,7 @@ def test_CS_peek(tmpdir):
                             load=True,
                             apply=True)
     p = cs.peek() # default: show op at top of undo_stack
-    assert p == TEST_OPS[1]
+    assert p == lc.parse(TEST_OPS[1])
     
     with pytest.raises(IndexError):
         p = cs.peek(len(cs.undo_stack) + 10)
@@ -549,7 +554,7 @@ def test_CS_peek(tmpdir):
         p = cs.peek(-10)
     
     p = cs.peek(0)
-    assert p == TEST_OPS[0]
+    assert p == lc.parse(TEST_OPS[0])
     
     os.remove(tf.name)
 
@@ -565,7 +570,7 @@ def test_CS__apply(tmpdir):
     new_cmd = """(set-name #:labels labels
                            #:target (interval #:index 1 #:value "b")
                            #:new-value "z")"""
-    cs._apply(new_cmd)
+    cs._apply(lc.parse(new_cmd))
     # the stack is now in an undefined state
     # but we can still check that _apply performed the new_cmd operation
     assert cs.labels[1]['name'] == 'z'
