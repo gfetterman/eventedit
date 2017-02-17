@@ -173,8 +173,8 @@ class CorrectionStack:
         op = 'set_name'
         target_name = 'interval'
         target = {'index': index,
-                  'name': self.labels[index]['name']}
-        other_args = {'new_name': new_name}
+                  'value': self.labels[index]['name']}
+        other_args = {'new_value': new_name}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_set_start(self, index, new_start):
@@ -184,8 +184,8 @@ class CorrectionStack:
         op = 'set_start'
         target_name = 'interval'
         target = {'index': index,
-                  'bd': self.labels[index]['start']}
-        other_args = {'new_bd': new_start}
+                  'value': self.labels[index]['start']}
+        other_args = {'new_value': new_start}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_set_stop(self, index, new_stop):
@@ -195,8 +195,8 @@ class CorrectionStack:
         op = 'set_stop'
         target_name = 'interval'
         target = {'index': index,
-                  'bd': self.labels[index]['stop']}
-        other_args = {'new_bd': new_stop}
+                  'value': self.labels[index]['stop']}
+        other_args = {'new_value': new_stop}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_merge_next(self, index, new_name=None):
@@ -281,13 +281,9 @@ class CorrectionStack:
 
 # raw operations
 
-def _set_name(labels, target, new_name, **kwargs):
-    labels[target['index']]['name'] = new_name
-
-def _set_bd(labels, target, which, new_bd, **kwargs):
-    if which not in ('start', 'stop'):
-        raise KeyError('boundary name not recognized: ' + which)
-    labels[target['index']][which] = new_bd
+def _set_value(labels, target, column, new_value, **kwargs):
+    labels[target['index']][column] # raise KeyError if column not present
+    labels[target['index']][column] = new_value
 
 def _merge_next(labels, target, **kwargs):
     index = target['index']
@@ -468,9 +464,9 @@ def parse(cmd):
 
 def make_env(**kwargs):
     """Returns an environment for s-expression evaluation."""
-    env = {'set_name': _set_name,
-           'set_start': functools.partial(_set_bd, which='start'),
-           'set_stop': functools.partial(_set_bd, which='stop'),
+    env = {'set_name': functools.partial(_set_value, column='name'),
+           'set_start': functools.partial(_set_value, column='start'),
+           'set_stop': functools.partial(_set_value, column='stop'),
            'merge_next': _merge_next,
            'split': _split,
            'delete': _delete,
