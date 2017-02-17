@@ -185,7 +185,7 @@ class CorrectionStack:
         target_name = 'interval'
         target = {'index': index,
                   'bd': self.labels[index]['start']}
-        other_args = {'which': 'start', 'new_bd': new_start}
+        other_args = {'new_bd': new_start}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_set_stop(self, index, new_stop):
@@ -196,7 +196,7 @@ class CorrectionStack:
         target_name = 'interval'
         target = {'index': index,
                   'bd': self.labels[index]['stop']}
-        other_args = {'which': 'stop', 'new_bd': new_stop}
+        other_args = {'new_bd': new_stop}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_merge_next(self, index, new_name=None):
