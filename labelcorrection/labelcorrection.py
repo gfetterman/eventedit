@@ -56,9 +56,8 @@ class CorrectionStack:
             for op in fp:
                 if op != '\n':
                     if apply:
-                        self.push(op.strip())
-                    else:
-                        self.undo_stack.append(op.strip())
+                        self._apply(op.strip())
+                    self.undo_stack.append(op.strip())
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
