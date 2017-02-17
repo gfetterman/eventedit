@@ -59,8 +59,7 @@ class CorrectionStack:
                         self.push(op.strip())
                     else:
                         self.undo_stack.append(op.strip())
-        meta_name = self.file + '.yaml'
-        with codecs.open(meta_name, 'r', encoding='utf-8') as mdfp:
+        with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
             self.evfile_hash = file_data['evfile_hash']
@@ -74,12 +73,9 @@ class CorrectionStack:
         with codecs.open(self.file, 'w', encoding='utf-8') as fp:
             for op in self.undo_stack:
                 fp.write(op + '\n')
-        meta_name = self.file + '.yaml'
-        with codecs.open(meta_name, 'w', encoding='utf-8') as mdfp:
-            file_data = {'uuid': self.uuid,
-                         'evfile_hash': self.evfile_hash}
-            header = """# corrections file using YAML syntax\n---\n"""
-            mdfp.write(header)
+        with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
+            file_data = {'uuid': self.uuid, 'evfile_hash': self.evfile_hash}
+            mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
