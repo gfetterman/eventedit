@@ -79,26 +79,18 @@ class CorrectionStack:
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
     def undo(self):
-        """Undoes last executed command, if any."""
-        try:
-            cmd = self.undo_stack.pop()
-        except IndexError:
-            pass
-        else:
-            inv = invert(cmd)
-            self.redo_stack.append(inv)
-            self._apply(inv)
+        """Undoes last executed command, if any.
+           Raises an IndexError if the undo_stack is empty."""
+        inv = invert(self.undo_stack.pop())
+        self.redo_stack.append(inv)
+        self._apply(inv)
     
     def redo(self):
-        """Redoes last undone command, if any."""
-        try:
-            cmd = self.redo_stack.pop()
-        except IndexError:
-            pass
-        else:
-            inv = invert(cmd)
-            self.undo_stack.append(inv)
-            self._apply(inv)
+        """Redoes last undone command, if any.
+           Raises an IndexError if the redo_stack is empty."""
+        inv = invert(self.redo_stack.pop())
+        self.undo_stack.append(inv)
+        self._apply(inv)
     
     def push(self, cmd):
         """Executes command, discarding redo stack."""

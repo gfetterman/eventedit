@@ -471,13 +471,15 @@ def test_CS_undo_and_redo(tmpdir):
     assert cs.labels[0]['name'] == "q"
     
     cs.undo() # undo TEST_OPS[0]
-    cs.undo() # undo actions when undo_stack is empty do nothing
-    cs.undo()
     assert len(cs.undo_stack) == 0
     assert len(cs.redo_stack) == 3
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.2
     assert cs.labels[0]['name'] == "a"
+    
+    # undo on an empty undo_stack raises exception
+    with pytest.raises(IndexError):
+        cs.undo()
     
     cs.redo() # redo TEST_OPS[0]
     assert len(cs.undo_stack) == 1
@@ -494,14 +496,16 @@ def test_CS_undo_and_redo(tmpdir):
     assert cs.labels[0]['name'] == "q"
 
     cs.redo() # redo new_cmd
-    cs.redo() # redo actions when redo_stack is empty do nothing
-    cs.redo()
     assert len(cs.undo_stack) == 3
     assert len(cs.redo_stack) == 0
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
-
+    
+    # redo on an empty redo_stack raises exception
+    with pytest.raises(IndexError):
+        cs.redo()
+        
     os.remove(tf.name)
 
 def test_CS_push(tmpdir):
