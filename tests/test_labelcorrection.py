@@ -283,7 +283,7 @@ def make_corr_file(tmpdir):
     with open((tf.name + '.yaml'), 'w') as mdfp:
         mdfp.write("""# corrections metadata, YAML\n---\n""")
         file_metadata = {'uuid': '0',
-                         'evfile_hash': '0123-4567'}
+                         'label_hash': '0123-4567'}
         mdfp.write(yaml.safe_dump(file_metadata))
     return tf
 
@@ -292,7 +292,6 @@ def test_CS_init(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     assert cs.labels == TEST_LABELS
@@ -300,7 +299,6 @@ def test_CS_init(tmpdir):
     assert len(cs.undo_stack) == 0
         
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True)
     assert cs.labels == TEST_LABELS
@@ -311,7 +309,6 @@ def test_CS_init(tmpdir):
     assert cs.uuid == '0'
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -330,7 +327,6 @@ def test_context_manager(tmpdir):
     # exception is passed through, and .bak file is created
     with pytest.raises(ZeroDivisionError):
         with lc.CorrectionStack(labels=labels,
-                                event_file=tf.name,
                                 ops_file=tf.name,
                                 load=True) as cs:
             cs.rename(3, 'eggs')
@@ -341,7 +337,6 @@ def test_context_manager(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
     with lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=(tf.name + '.bak'),
                             load=True,
                             apply=True) as cs:
@@ -353,7 +348,6 @@ def test_context_manager(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
     with lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True) as cs:
@@ -366,7 +360,6 @@ def test_context_manager(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
     with lc.CorrectionStack(labels=labels,
-                            event_file=tf2.name,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -377,7 +370,6 @@ def test_context_manager(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
     with lc.CorrectionStack(labels=labels,
-                            event_file=tf2.name,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -393,7 +385,6 @@ def test_CS_read_from_file(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     cs.read_from_file(tf.name, apply=False)
@@ -413,7 +404,6 @@ def test_CS_write_to_file(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -425,14 +415,13 @@ def test_CS_write_to_file(tmpdir):
     assert os.path.exists(cs.file + '.yaml')
     
     cs_new = lc.CorrectionStack(labels=labels,
-                                event_file=tf.name,
                                 ops_file=tf.name,
                                 load=True,
                                 apply=True)
     assert len(cs_new.undo_stack) == 3
     assert cs_new.undo_stack == cs.undo_stack
     assert cs_new.undo_stack[-1] == lc.parse(new_cmd)
-    assert cs_new.evfile_hash == cs.evfile_hash
+    assert cs_new.label_hash == cs.label_hash
     assert cs_new.uuid == cs.uuid
     
     os.remove(tf.name)
@@ -442,7 +431,6 @@ def test_CS_undo_and_redo(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -513,7 +501,6 @@ def test_CS_push(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -544,7 +531,6 @@ def test_CS_peek(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -567,7 +553,6 @@ def test_CS__apply(tmpdir):
     tf = make_corr_file(tmpdir)
     
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -588,7 +573,6 @@ def test_CS_rename():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -603,7 +587,6 @@ def test_CS_set_start():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -618,7 +601,6 @@ def test_CS_set_stop():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -633,7 +615,6 @@ def test_CS_merge_next():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -689,7 +670,6 @@ def test_CS_split():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -715,7 +695,6 @@ def test_CS_delete():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     
@@ -748,7 +727,6 @@ def test_CS_create():
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
     cs = lc.CorrectionStack(labels=labels,
-                            event_file=tf.name,
                             ops_file=tf.name,
                             load=False)
     

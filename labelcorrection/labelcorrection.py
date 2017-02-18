@@ -11,14 +11,11 @@ import functools
 
 __version__ = "0.2"
 
-BUFF_SIZE = 65536 # 64kb
-
 class CorrectionStack:
-    def __init__(self, labels, event_file, ops_file, load, apply=False):
+    def __init__(self, labels, ops_file, load, apply=False):
         """Creates a CorrectionStack.
         
            labels -- a list of dicts denoted event data
-           event_file -- filename string
            ops_file -- filename string to save operations
            load -- bool; if True, load from ops_file
            apply -- bool; if True and if load, apply corrections in ops_file"""
@@ -30,7 +27,7 @@ class CorrectionStack:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
             self.uuid = str(uuid.uuid4())
-            self.evfile_hash = _buff_hash_file(event_file)
+            self.label_hash = self._make_label_hash()
     
     def __enter__(self):
         return self
@@ -42,6 +39,10 @@ class CorrectionStack:
         else:
             self.write_to_file(self.file + '.bak')
             return False
+    
+    def _make_label_hash(self):
+        """Returns SHA-1 hash of labels the stack's operations act on."""
+        return hashlib.sha1(repr(self.labels).encode()).hexdigest()
     
     def read_from_file(self, file=None, apply=False):
         """Read a stack of corrections plus metadata from file.
@@ -62,7 +63,7 @@ class CorrectionStack:
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.uuid = file_data['uuid']
-            self.evfile_hash = file_data['evfile_hash']
+            self.label_hash = file_data['label_hash']
     
     def write_to_file(self, file=None):
         """Write stack of corrections plus metadata to file.
@@ -74,7 +75,7 @@ class CorrectionStack:
             for op in self.undo_stack:
                 fp.write(deparse(op) + '\n')
         with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
-            file_data = {'uuid': self.uuid, 'evfile_hash': self.evfile_hash}
+            file_data = {'uuid': self.uuid, 'label_hash': self.label_hash}
             mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
@@ -493,12 +494,3 @@ def _grouper(iterable, n):
         return itertools.izip_longest(*args)
     except AttributeError: # python 2/3 support
         return itertools.zip_longest(*args)
-
-def _buff_hash_file(filename):
-    with open(filename, 'rb') as file:
-        data = file.read(BUFF_SIZE)
-        hash = hashlib.sha1()
-        while data:
-            hash.update(data)
-            data = file.read(BUFF_SIZE)
-    return hash.hexdigest()
