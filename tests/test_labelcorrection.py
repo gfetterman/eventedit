@@ -10,22 +10,22 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 2.1, 'stop': 3.5, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
-TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:value "a") #:new-value "q")""",
-            """(set-stop #:labels labels #:target (interval #:index 2 #:value 4.2) #:new-value 4.5)"""]
+TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:name "a") #:new-name "q")""",
+            """(set-stop #:labels labels #:target (interval #:index 2 #:stop 4.2) #:new-stop 4.5)"""]
 
 # test raw label correction operations
 
 def test__set_value():
     labels = copy.deepcopy(TEST_LABELS)
     
-    lc._set_value(labels, {'index': 3}, 'name', 'b', discard='spam')
+    lc._set_value(labels, {'index': 3}, 'name', new_name='b', discard='spam')
     assert labels[3]['name'] == 'b'
     
-    lc._set_value(labels, {'index': 3}, 'start', 4.6)
+    lc._set_value(labels, {'index': 3}, 'start', new_start=4.6)
     assert labels[3]['start'] == 4.6
     
     with pytest.raises(KeyError):
-        lc._set_value(labels, {'index': 3}, 'sir_not_appearing_in_this_film', 3)
+        lc._set_value(labels, {'index': 3}, 'sirnotappearinginthisfilm', new=3)
 
 def test__merge_next():
     labels = copy.deepcopy(TEST_LABELS)
@@ -171,14 +171,14 @@ def test_whole_stack():
     test_env = lc.make_env(labels=labels)
     
     cmd = """(set-name #:labels labels
-                       #:target (interval #:index 0 #:value "a")
-                       #:new-value "b")"""
+                       #:target (interval #:index 0 #:name "a")
+                       #:new-name "b")"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
     cmd = """(set-start #:labels labels
-                           #:target (interval #:index 1 #:value 3.141)
-                           #:new-value 2.2)"""
+                           #:target (interval #:index 1 #:start 3.141)
+                           #:new-start 2.2)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2
     
@@ -407,7 +407,7 @@ def test_CS_write_to_file(tmpdir):
                             ops_file=tf.name,
                             load=True,
                             apply=True)
-    new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:value "b") #:new-value "z")"""
+    new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(lc.parse(new_cmd))
     os.remove(tf.name)
     cs.write_to_file()
@@ -435,8 +435,8 @@ def test_CS_undo_and_redo(tmpdir):
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:value "b")
-                           #:new-value "z")"""
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
     cs.push(lc.parse(new_cmd))
     assert len(cs.undo_stack) == 3
     assert len(cs.redo_stack) == 0
@@ -509,8 +509,8 @@ def test_CS_push(tmpdir):
     assert cs.labels[0]['name'] == "q"
 
     new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:value "b")
-                           #:new-value "z")"""
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
     cs.push(lc.parse(new_cmd)) # push adds new_cmd to head of stack
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
@@ -557,8 +557,8 @@ def test_CS__apply(tmpdir):
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:value "b")
-                           #:new-value "z")"""
+                           #:target (interval #:index 1 #:name "b")
+                           #:new-name "z")"""
     cs._apply(lc.parse(new_cmd))
     # the stack is now in an undefined state
     # but we can still check that _apply performed the new_cmd operation

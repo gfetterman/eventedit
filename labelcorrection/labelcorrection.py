@@ -166,8 +166,8 @@ class CorrectionStack:
         op = 'set_name'
         target_name = 'interval'
         target = {'index': index,
-                  'value': self.labels[index]['name']}
-        other_args = {'new_value': new_name}
+                  'name': self.labels[index]['name']}
+        other_args = {'new_name': new_name}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_set_start(self, index, new_start):
@@ -177,8 +177,8 @@ class CorrectionStack:
         op = 'set_start'
         target_name = 'interval'
         target = {'index': index,
-                  'value': self.labels[index]['start']}
-        other_args = {'new_value': new_start}
+                  'start': self.labels[index]['start']}
+        other_args = {'new_start': new_start}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_set_stop(self, index, new_stop):
@@ -188,8 +188,8 @@ class CorrectionStack:
         op = 'set_stop'
         target_name = 'interval'
         target = {'index': index,
-                  'value': self.labels[index]['stop']}
-        other_args = {'new_value': new_stop}
+                  'stop': self.labels[index]['stop']}
+        other_args = {'new_stop': new_stop}
         return self._gen_code(op, target_name, target, other_args)
 
     def codegen_merge_next(self, index, new_name=None):
@@ -274,9 +274,9 @@ class CorrectionStack:
 
 # raw operations
 
-def _set_value(labels, target, column, new_value, **kwargs):
+def _set_value(labels, target, column, **kwargs):
     labels[target['index']][column] # raise KeyError if column not present
-    labels[target['index']][column] = new_value
+    labels[target['index']][column] = kwargs['new_' + column]
 
 def _merge_next(labels, target, **kwargs):
     index = target['index']

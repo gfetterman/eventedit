@@ -11,20 +11,20 @@
 ;; invocation of set-start and set-stop
 ;; they are their own inverses
 (set-start #:labels labels
-           #:target (interval #:index 3 #:bd 3.141)
-           #:new-bd 3.131)
+           #:target (interval #:index 3 #:start 3.141)
+           #:new-start 3.131)
 
 (set-start #:labels labels
-           #:target (interval #:index 3 #:bd 3.131)
-           #:new-bd 3.141)
+           #:target (interval #:index 3 #:start 3.131)
+           #:new-start 3.141)
 
 (set-stop #:labels labels
-          #:target (interval #:index 3 #:bd 3.400)
-          #:new-bd 3.450)
+          #:target (interval #:index 3 #:stop 3.400)
+          #:new-stop 3.450)
 
 (set-stop #:labels labels
-          #:target (interval #:index 3 #:bd 3.450)
-          #:new-bd 3.400)
+          #:target (interval #:index 3 #:stop 3.450)
+          #:new-stop 3.400)
 
 ;; invocation of merge-next and split
 ;; these are one another's inverses
