@@ -121,156 +121,97 @@ class CorrectionStack:
         """Changes the stop time of an event."""
         self.push(self.codegen_set_stop(index, new_stop))
     
-    def merge_next(self, index, new_name=None):
+    def merge_next(self, index):
         """Merges an event with its successor."""
-        self.push(self.codegen_merge_next(index, new_name))
+        self.push(self.codegen_merge_next(index))
     
-    def split(self, index, new_sep, new_name=None, new_next_name=None):
+    def split(self, index, new_sep):
         """Splits an event in two."""
-        self.push(self.codegen_split(index, new_sep, new_name, new_next_name))
+        self.push(self.codegen_split(index, new_sep))
     
     def delete(self, index):
         """Deletes an event."""
         self.push(self.codegen_delete(index))
     
-    def create(self, index, start, **kwargs):
+    def create(self, index, start, stop, name, **kwargs):
         """Creates a new event."""
-        self.push(self.codegen_create(index, start, **kwargs))
+        self.push(self.codegen_create(index, start, stop, name, **kwargs))
     
     # code generators
     
-    def _gen_code(self, op, target_name, target, other_args):
+    def _gen_code(self, op, idx, new_vals, old_vals):
         """Generates an s-expression for the given op.
            
            op -- string
-           target_name -- string
-           target -- dict
-           other_args -- dict"""
-        ntl = [Symbol(op)]
-        ntl.append(KeyArg('labels'))
-        ntl.append(Symbol('labels'))
-        ntl.append(KeyArg('target'))
-        ntl.append([Symbol(target_name)])
-        for k, a in target.items():
-            ntl[-1].append(KeyArg(k))
-            ntl[-1].append(a)
-        for k, a in other_args.items():
-            ntl.append(KeyArg(k))
-            ntl.append(a)
-        return ntl
-
+           idx -- integer
+           new_vals -- dict; keys must be valid column names
+           old_vals -- list of strings; must be valid column names"""
+        sxpr = [Symbol(op), KeyArg('target'), [Symbol('interval')]]
+        sxpr[-1].extend([KeyArg('index'), idx])
+        query_keys = (old_vals | set(new_vals.keys())) - set(['next_start'])
+        for c in query_keys:
+            sxpr[-1].extend([KeyArg(c), self.labels[idx][c]])
+        if op == 'merge_next': # include second event's data to allow inversion
+            for c in query_keys:
+                sxpr[-1].extend([KeyArg('next_' + c), self.labels[idx + 1][c]])
+        elif op == 'split': # second child event's data is copied from first
+            for c in query_keys:
+                sxpr[-1].extend([KeyArg('next_' + c), self.labels[idx][c]])
+        for c in new_vals:
+            sxpr.extend([KeyArg('new_' + c), new_vals[c]])
+        return sxpr
+    
     def codegen_rename(self, index, new_name):
-        """Generates command string to rename an interval.
-           
-           new_name -- string"""
-        op = 'set_name'
-        target_name = 'interval'
-        target = {'index': index,
-                  'name': self.labels[index]['name']}
-        other_args = {'new_name': new_name}
-        return self._gen_code(op, target_name, target, other_args)
-
+        """Generates s-expression to rename an event."""
+        new_values = {'name': new_name}
+        old_values = set()
+        return self._gen_code('set_name', index, new_values, old_values)
+    
     def codegen_set_start(self, index, new_start):
-        """Generates command string to move an interval's start.
-           
-           new_start -- float"""
-        op = 'set_start'
-        target_name = 'interval'
-        target = {'index': index,
-                  'start': self.labels[index]['start']}
-        other_args = {'new_start': new_start}
-        return self._gen_code(op, target_name, target, other_args)
-
+        """Generates s-expression to move an event's start."""
+        new_values = {'start': new_start}
+        old_values = set()
+        return self._gen_code('set_start', index, new_values, old_values)
+    
     def codegen_set_stop(self, index, new_stop):
-        """Generates command string to move an interval's stop.
-           
-           new_stop -- float"""
-        op = 'set_stop'
-        target_name = 'interval'
-        target = {'index': index,
-                  'stop': self.labels[index]['stop']}
-        other_args = {'new_stop': new_stop}
-        return self._gen_code(op, target_name, target, other_args)
-
-    def codegen_merge_next(self, index, new_name=None):
-        """Generates command string to merge an interval and its successor.
-           
-           new_name -- string; if absent, new interval name is concatenation
-                       of two parents' names"""
-        op = 'merge_next'
-        target_name = 'interval_pair'
-        target = {'index': index,
-                  'name': self.labels[index]['name'],
-                  'stop': self.labels[index]['stop'],
-                  'next_start': self.labels[index + 1]['start'],
-                  'next_name': self.labels[index + 1]['name']}
-        if new_name is None:
-            new_name = target['name'] + target['next_name']
-        other_args = {'new_name': new_name,
-                      'new_stop': None,
-                      'new_next_start': None,
-                      'new_next_name': None}
-        columns = [c for c in self.labels[index].keys()
-                   if c not in ('start', 'stop', 'name')]
-        for c in columns:
-            target[c] = self.labels[index][c]
-            target['next_' + c] = self.labels[index + 1][c]
-            other_args['new_' + c] = None
-            other_args['new_next_' + c] = None
-        return self._gen_code(op, target_name, target, other_args)
-
-    def codegen_split(self, index, new_sep, new_name=None,
-                      new_next_name=None, **kwargs):
-        """Generates command string to split an interval in two.
-           
-           new_sep -- number; must be within interval's limits
-           new_name -- string; if absent"""
-        op = 'split'
-        target_name = 'interval_pair'
-        target = {'index': index,
-                  'name': self.labels[index]['name'],
-                  'stop': self.labels[index]['stop'],
-                  'next_name': None,
-                  'next_start': None,}
-        if new_name is None:
-            new_name = target['name']
-        if new_next_name is None:
-            new_next_name = ''
-        other_args = {'new_name': new_name,
-                      'new_stop': new_sep,
-                      'new_next_start': new_sep,
-                      'new_next_name': new_next_name}
-        columns = [c for c in self.labels[index].keys()
-                   if c not in ('start', 'stop', 'name')]
-        for c in columns:
-            target[c] = self.labels[index][c]
-            target['next_' + c] = None
-            other_args['new_' + c] = kwargs['new_' + c]
-            other_args['new_next_' + c] = kwargs['new_next_' + c]
-        return self._gen_code(op, target_name, target, other_args)
-
+        """Generates s-expression to move an event's stop."""
+        new_values = {'stop': new_stop}
+        old_values = set()
+        return self._gen_code('set_stop', index, new_values, old_values)
+    
+    def codegen_merge_next(self, index):
+        """Generates an s-expression to merge an event with its successor.
+           The new event inherits all non-boundary column values from the
+           first parent."""
+        new_values = {'stop': None, 'next_start': None}
+        old_values = set(self.labels[index].keys())
+        return self._gen_code('merge_next', index, new_values, old_values)
+    
+    def codegen_split(self, index, split_pt):
+        """Generates an s-expression to split an event in two at a point.
+           The child events inherit all non-boundary column values from the
+           parent."""
+        new_values = {'stop': split_pt, 'next_start': split_pt}
+        old_values = set(self.labels[index].keys())
+        return self._gen_code('split', index, new_values, old_values)
+    
     def codegen_delete(self, index):
-        """Generates command string to delete an interval."""
-        op = 'delete'
-        target_name = 'interval'
-        target = {'index': index}
-        target.update(self.labels[index])
-        other_args = {}
-        return self._gen_code(op, target_name, target, other_args)
-
-    def codegen_create(self, index, start, **kwargs):
-        """Generates command string to create a new interval.
-           
-           start -- float
-           kwargs -- any other column values the interval possesses"""
-        op = 'create'
-        target_name = 'interval'
-        target = {'index': index,
-                  'start': start}
-        target.update(kwargs)
-        other_args = {}
-        return self._gen_code(op, target_name, target, other_args)
-
+        """Generates an s-expression to delete an event."""
+        new_values = {}
+        old_values = set(self.labels[index].keys())
+        return self._gen_code('delete', index, new_values, old_values)
+    
+    def codegen_create(self, index, start, stop, name, **kwargs):
+        """Generates an s-expression to create a new event with given values."""
+        new_values = {'start': start, 'stop': stop, 'name': name}
+        new_values.update(kwargs)
+        old_values = set(new_values.keys())
+        # trick: make 'create' s-expr with new_vals, invert to 'delete' s-expr
+        # to inject them into #:target, remove the garbage new_values, then
+        # invert again to generate the proper 'create' s-expr
+        bad_create = self._gen_code('create', index, new_values, old_values)
+        good_create = invert(invert(bad_create)[:3])
+        return good_create
 
 # raw operations
 
@@ -281,7 +222,6 @@ def _set_value(labels, target, column, **kwargs):
 def _merge_next(labels, target, **kwargs):
     index = target['index']
     labels[index]['stop'] = labels[index + 1]['stop']
-    labels[index]['name'] = kwargs['new_name']
     labels.pop(index + 1)
 
 def _split(labels, target, **kwargs):
@@ -289,25 +229,24 @@ def _split(labels, target, **kwargs):
             kwargs['new_next_start'] < labels[target['index']]['stop']):
         raise ValueError('split point must be within interval')
     index = target['index']
-    new_point = copy.deepcopy(labels[index])
-    for key in kwargs:
-        if key[:9] == 'new_next_':
-            new_point[key[9:]] = kwargs[key]
-        elif key[:4] == 'new_':
-            labels[index][key[4:]] = kwargs[key]
-    labels.insert(index + 1, new_point)
+    labels.insert(index + 1, copy.deepcopy(labels[index]))
+    labels[index]['stop'] = kwargs['new_stop']
+    for k in target:
+        if k[:5] == 'next_':
+            labels[index + 1][k[5:]] = target[k]
+    labels[index + 1]['start'] = kwargs['new_next_start']
 
-def _delete(labels, target, **kwargs):
+def _delete(labels, target):
     labels.pop(target['index'])
 
-def _create(labels, target, **kwargs):
-    index = target['index']
+def _create(labels, target):
+    idx = target['index']
     new_point = {'start': target['start'],
                  'stop': target['stop'],
                  'name': target['name']}
-    del target['start'], target['stop'], target['name'], target['index']
+    del target['index']
     new_point.update(target)
-    labels.insert(index, new_point)
+    labels.insert(idx, new_point)
 
 # invert operations
 
