@@ -26,8 +26,8 @@ class EditStack:
         else:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
-            self.uuid = str(uuid.uuid4())
-            self.label_hash = self._make_label_hash()
+            self.hash_pre = self.event_hash()
+            self.hash_post = self.event_hash()
     
     def __enter__(self):
         return self
@@ -40,8 +40,8 @@ class EditStack:
             self.write_to_file(self.file + '.bak')
             return False
     
-    def _make_label_hash(self):
-        """Returns SHA-1 hash of labels the stack's operations act on."""
+    def event_hash(self):
+        """Returns SHA-1 hash of current event list state."""
         return hashlib.sha1(repr(self.labels).encode()).hexdigest()
     
     def read_from_file(self, file=None, apply=False):
@@ -62,8 +62,8 @@ class EditStack:
                     self.undo_stack.append(parse(op.strip()))
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
-            self.uuid = file_data['uuid']
-            self.label_hash = file_data['label_hash']
+            self.hash_pre = file_data['hash_pre']
+            self.hash_post = file_data['hash_post']
     
     def write_to_file(self, file=None):
         """Write stack of corrections plus metadata to file.
@@ -75,7 +75,8 @@ class EditStack:
             for op in self.undo_stack:
                 fp.write(deparse(op) + '\n')
         with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
-            file_data = {'uuid': self.uuid, 'label_hash': self.label_hash}
+            self.hash_post = self.event_hash()
+            file_data = {'hash_pre': self.hash_pre, 'hash_post': self.hash_post}
             mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     

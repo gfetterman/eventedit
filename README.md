@@ -30,9 +30,9 @@ themselves.
 When writing operations to disk, the EditStack creates two files: a textual
 representation of the operations in a Lisp-like format, and a handful of
 metadata that ensure corrections are only applied to the right labels. These
-metadata include a UUID for the editing session and a SHA-1 hash of the labels
-being operated on. The metadata filename is that of the operations file plus
-`.yaml`; it is, unsurprisingly, written in YAML syntax.
+metadata include SHA-1 hashes of the labels before and after the operations in
+the operations file are carried out. The metadata filename is that of the
+operations file plus `.yaml`; it is, unsurprisingly, written in YAML syntax.
 
 ## Supported operations
 

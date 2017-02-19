@@ -261,8 +261,8 @@ def make_corr_file(tmpdir):
     tf.close()
     with open((tf.name + '.yaml'), 'w') as mdfp:
         mdfp.write("""# corrections metadata, YAML\n---\n""")
-        file_metadata = {'uuid': '0',
-                         'label_hash': '0123-4567'}
+        file_metadata = {'hash_pre': '0123-4567',
+                         'hash_post': '0123-4568'}
         mdfp.write(yaml.safe_dump(file_metadata))
     return tf
 
@@ -285,7 +285,7 @@ def test_CS_init(tmpdir):
     assert len(cs.undo_stack) == 2
     assert cs.undo_stack[0] == eved.parse(TEST_OPS[0])
     assert cs.undo_stack[1] == eved.parse(TEST_OPS[1])
-    assert cs.uuid == '0'
+    assert cs.hash_post == '0123-4568'
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
@@ -400,8 +400,8 @@ def test_CS_write_to_file(tmpdir):
     assert len(cs_new.undo_stack) == 3
     assert cs_new.undo_stack == cs.undo_stack
     assert cs_new.undo_stack[-1] == eved.parse(new_cmd)
-    assert cs_new.label_hash == cs.label_hash
-    assert cs_new.uuid == cs.uuid
+    assert cs_new.hash_pre == cs.hash_pre
+    assert cs_new.hash_post == cs.hash_post
     
     os.remove(tf.name)
 
