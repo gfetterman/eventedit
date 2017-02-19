@@ -8,33 +8,46 @@ generated on-the-fly.
 
 Designed to work with [Bark](https://github.com/kylerbrown/bark)-formatted event data.
 
+## The EditStack
+
+The `EditStack` structure mediates the user's interactions with the event data.
+It can be used like a regular object, or placed within a context-managing `with`
+statement.
+
+The user calls `EditStack` methods representing the allowed operations on the
+event data, and the edits are enacted and also stored, allowing easy undo and
+redo.
+
+When the user is finished editing the event data, they either leave the context
+manager's scope, triggering a write of the operations representing the 
+currently-enacted changes to a file, or (if the EditStack is being used without
+the context manager) trigger the write to file manually.
+
+The EditStack itself will only write operations representing the user's edits to
+a file. The user is responsible for writing the (modified) label data to file
+themselves.
+
+When writing operations to disk, the EditStack creates two files: a textual
+representation of the operations in a Lisp-like format, and a handful of
+metadata that ensure corrections are only applied to the right labels. These
+metadata include a UUID for the editing session and a SHA-1 hash of the labels
+being operated on. The metadata filename is that of the operations file plus
+`.yaml`; it is, unsurprisingly, written in YAML syntax.
+
 ## Supported operations
 
 The language describes a limited set of operations on interval labels:
 
-1. Rename an interval
-2. Adjust an interval's boundaries
-3. Merge two consecutive intervals
-4. Split an interval in two
-5. Delete an interval
-6. Create a new interval
-
-## Minilanguage implementation and representation
-
-Corrections stored in memory and on disk are structured in a Lisp-like prefix
-notation. While the current language spec is extremely limited, this will
-hopefully avoid restricting future extensions.
-
-The choice of a Lisp-like representation also simplifies parsing. The
-parser is a feature-sparse version of [Peter Norvig's `lispy`]
-(http://norvig.com/lispy.html).
+1. Rename an interval: `EditStack.rename(index, new_name)`
+2. Adjust an interval's boundaries: `EditStack.set_start(index, new_start)`
+                                    `EditStack.set_stop(index, new_stop)`
+3. Merge two consecutive intervals: `EditStack.merge(index)`
+4. Split an interval in two: `EditStack.split(index, split_pt)`
+5. Delete an interval: `EditStack.delete(index)`
+6. Create a new interval: `EditStack.create(index, name, start, stop, **kwargs)`
 
 Pseudo-Racket representations of the supported operations may be found in the
 `examples.rkt` file above.
-
-The stack container allows writing accumulated corrections to disk. Corrections
-files are written in [YAML](http://yaml.org/). A stack can also be populated
-from an already-existing corrections file.
 
 ## Interaction with Bark
 
@@ -53,8 +66,8 @@ correction structure, and for writing any corrected event data to disk.
 
 The interface has been tested against both Python 2.7 and Python 3.5.
 
-    git clone https://github.com/gfetterman/labelcorrection
-    cd labelcorrection
+    git clone https://github.com/gfetterman/eventedit
+    cd eventedit
     pip install .
     
     # optional tests
@@ -64,24 +77,23 @@ The interface has been tested against both Python 2.7 and Python 3.5.
 
 The pattern for usage of this tool is:
 
-+ Create a `CorrectionStack` object
-+ Execute operations on the label data by applying stack methods.
++ Create an `EditStack` object
++ Execute operations on the label data by applying stack operations.
 + Write the corrected label data back to Bark-formatted files.
 + Write the record of the corrections carried out by calling the stack's
-  `write_to_file()` method.
+  `write_to_file()` method, or rely on the context manager to do so.
 
 ## Python interface
 
 The following is an example of use with already-loaded Bark event data.
 
-    import labelcorrection as lc
+    import eventedit as eved
     
     # bark event data: voc_labels
     
-    with lc.CorrectionStack(labels=voc_labels.data,
-                            event_file=voc_labels.path,
-                            ops_file=(voc_labels.name + '.corr'),
-                            load=False) as cs:
+    with eved.EditStack(labels=voc_labels.data,
+                        ops_file=(voc_labels.name + '.corr'),
+                        load=False) as cs:
         cs.labels[55]['name']
         # 'a'
         cs.rename(index=55, new_name='b')
@@ -97,7 +109,19 @@ The following is an example of use with already-loaded Bark event data.
         cs.undo()
         cs.labels[56]['stop']
         # 77.5600
+    # passing out of the context manager's scope triggers write of operations
+    # to file - but not the modified label data themselves
     
-    # CorrectionStack doesn't write label data back to file
-    # user is responsible for writing label data themselves
+    # EditStack doesn't write label data back to file
+    # user is responsible for writing label data
     voc_labels.write()
+
+## Minilanguage implementation and representation
+
+Corrections stored in memory and on disk are structured in a Lisp-like prefix
+notation. While the current language spec is extremely limited, this will
+hopefully avoid restricting future extensions.
+
+The choice of a Lisp-like representation also simplifies parsing. The
+parser is a feature-sparse version of [Peter Norvig's `lispy`]
+(http://norvig.com/lispy.html).
