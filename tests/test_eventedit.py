@@ -1,6 +1,6 @@
 import pytest
 import copy
-import labelcorrection.labelcorrection as lc
+import eventedit.eventedit as eved
 import os
 import tempfile
 import yaml
@@ -18,18 +18,18 @@ TEST_OPS = ["""(set-name #:target (interval #:index 0 #:name "a") #:new-name "q"
 def test__set_value():
     labels = copy.deepcopy(TEST_LABELS)
     
-    lc._set_value(labels, {'index': 3}, 'name', new_name='b', discard='spam')
+    eved._set_value(labels, {'index': 3}, 'name', new_name='b', discard='spam')
     assert labels[3]['name'] == 'b'
     
-    lc._set_value(labels, {'index': 3}, 'start', new_start=4.6)
+    eved._set_value(labels, {'index': 3}, 'start', new_start=4.6)
     assert labels[3]['start'] == 4.6
     
     with pytest.raises(KeyError):
-        lc._set_value(labels, {'index': 3}, 'sirnotappearinginthisfilm', new=3)
+        eved._set_value(labels, {'index': 3}, 'sirnotappearinginthisfilm', new=3)
 
 def test__merge_next():
     labels = copy.deepcopy(TEST_LABELS)
-    lc._merge_next(labels, {'index': 1}, discard='spam')
+    eved._merge_next(labels, {'index': 1}, discard='spam')
     assert len(labels) == 3
     assert labels[1]['stop'] == 4.2
     assert labels[1]['name'] == 'b'
@@ -38,7 +38,7 @@ def test__merge_next():
 def test__split():
     labels = copy.deepcopy(TEST_LABELS)
     with pytest.raises(ValueError):
-        lc._split(labels,
+        eved._split(labels,
                   {'index': 3,
                    'name': 'd',
                    'stop': None,
@@ -47,7 +47,7 @@ def test__split():
                   new_stop=1.0,
                   new_next_start=1.0)
     
-    lc._split(labels,
+    eved._split(labels,
               {'index': 3,
                'name': 'd',
                'stop': None,
@@ -64,7 +64,7 @@ def test__split():
 
 def test__delete():
     labels = copy.deepcopy(TEST_LABELS)
-    lc._delete(labels, {'index': 2})
+    eved._delete(labels, {'index': 2})
     assert len(labels) == 3
     assert labels[2]['name'] == 'd'
 
@@ -75,7 +75,7 @@ def test__create():
                     'stop': 3.3,
                     'name': 'c2',
                     'tier': 'female'}
-    lc._create(labels, new_interval)
+    eved._create(labels, new_interval)
     assert len(labels) == 5
     with pytest.raises(KeyError):
         labels[2]['index']
@@ -88,34 +88,34 @@ def test__create():
 # test parser functions
 
 def test_tokenize():
-    tkns = lc.tokenize(TEST_COMMAND)
+    tkns = eved.tokenize(TEST_COMMAND)
     assert len(tkns) == 12
     assert tkns[0] == '('
     assert tkns[5] == '4.7'
     assert tkns[8] == '"focus_bird"'
     assert tkns[11] == ')'
     
-    tkns = lc.tokenize('string "spaces preserved"')
+    tkns = eved.tokenize('string "spaces preserved"')
     assert len(tkns) == 2
     assert tkns[0] == 'string'
     assert tkns[1] == '"spaces preserved"'
 
 def test_atomize():
-    assert lc.atomize('1') == 1
-    assert lc.atomize('1.5') == 1.5
-    assert lc.atomize('(') == '('
-    assert lc.atomize('"focus_bird"') == 'focus_bird'
-    assert isinstance(lc.atomize('set-name'), lc.Symbol)
-    assert lc.atomize('set-name') == 'set_name'
+    assert eved.atomize('1') == 1
+    assert eved.atomize('1.5') == 1.5
+    assert eved.atomize('(') == '('
+    assert eved.atomize('"focus_bird"') == 'focus_bird'
+    assert isinstance(eved.atomize('set-name'), eved.Symbol)
+    assert eved.atomize('set-name') == 'set_name'
 
 def test_parse_and_read_from_tokens():
     with pytest.raises(SyntaxError):
-        lc.read_from_tokens([])
+        eved.read_from_tokens([])
     
     with pytest.raises(SyntaxError):
-        lc.read_from_tokens([')'])
+        eved.read_from_tokens([')'])
     
-    nested_list = lc.parse(TEST_COMMAND)
+    nested_list = eved.parse(TEST_COMMAND)
     assert len(nested_list) == 3
     assert len(nested_list[1]) == 6
     assert nested_list[0] == 'set_name'
@@ -132,22 +132,22 @@ def test_evaluate():
                 'simple_proc': dict,
                 'complex_proc': complex_proc}
     
-    assert lc.evaluate(lc.Symbol('symbol'), test_env) == 'answer'
+    assert eved.evaluate(eved.Symbol('symbol'), test_env) == 'answer'
     
-    assert lc.evaluate(1.5, test_env) == 1.5
+    assert eved.evaluate(1.5, test_env) == 1.5
     
-    expr = [lc.Symbol('simple_proc'),
-            lc.KeyArg('start'), 1.5,
-            lc.KeyArg('stop'), 2.0,
-            lc.KeyArg('name'), 'a']
-    result = lc.evaluate(expr, test_env)
+    expr = [eved.Symbol('simple_proc'),
+            eved.KeyArg('start'), 1.5,
+            eved.KeyArg('stop'), 2.0,
+            eved.KeyArg('name'), 'a']
+    result = eved.evaluate(expr, test_env)
     assert isinstance(result, dict)
     assert result['start'] == 1.5
     assert result['stop'] == 2.0
     assert result['name'] == 'a'
     
-    expr[0] = lc.Symbol('complex_proc')
-    result = lc.evaluate(expr, test_env)
+    expr[0] = eved.Symbol('complex_proc')
+    result = eved.evaluate(expr, test_env)
     assert isinstance(result, dict)
     assert result['start'] == 2.5
     assert result['stop'] == 3.0
@@ -155,16 +155,16 @@ def test_evaluate():
 
 def test_whole_stack():
     labels = copy.deepcopy(TEST_LABELS)
-    test_env = lc.make_env(labels=labels)
+    test_env = eved.make_env(labels=labels)
     
     cmd = """(set-name #:target (interval #:index 0 #:name "a")
                        #:new-name "b")"""
-    lc.evaluate(lc.parse(cmd), test_env)
+    eved.evaluate(eved.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
     cmd = """(set-start #:target (interval #:index 1 #:start 3.141)
                            #:new-start 2.2)"""
-    lc.evaluate(lc.parse(cmd), test_env)
+    eved.evaluate(eved.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2
     
     cmd = """(merge-next #:target (interval #:index 1
@@ -174,7 +174,7 @@ def test_whole_stack():
                                             #:next-name "silence")
                          #:new_stop null
                          #:new_next_start null)"""
-    lc.evaluate(lc.parse(cmd), test_env)
+    eved.evaluate(eved.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS) - 1
     assert labels[1]['stop'] == TEST_LABELS[2]['stop']
     
@@ -185,27 +185,27 @@ def test_whole_stack():
                                        #:next-name "b")
                     #:new_stop 3.5
                     #:new_next_start 3.5)"""
-    lc.evaluate(lc.parse(cmd), test_env)
+    eved.evaluate(eved.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS)
     assert labels[1]['stop'] == TEST_LABELS[1]['stop']
 
 # test inverse parser operations and inverse generator
 
 def test_deatomize():
-    assert lc.deatomize(None) == 'null'
+    assert eved.deatomize(None) == 'null'
     
-    assert lc.deatomize(lc.KeyArg('name')) == '#:name'
+    assert eved.deatomize(eved.KeyArg('name')) == '#:name'
     
-    assert lc.deatomize(lc.Symbol('split')) == 'split'
-    assert lc.deatomize(lc.Symbol('merge_next')) == 'merge-next'
-    assert lc.deatomize(lc.Symbol('_')) == '_'
+    assert eved.deatomize(eved.Symbol('split')) == 'split'
+    assert eved.deatomize(eved.Symbol('merge_next')) == 'merge-next'
+    assert eved.deatomize(eved.Symbol('_')) == '_'
     
-    assert lc.deatomize('b') == '"b"'
+    assert eved.deatomize('b') == '"b"'
     
-    assert lc.deatomize(1.5) == '1.5'
+    assert eved.deatomize(1.5) == '1.5'
     
     with pytest.raises(ValueError):
-        lc.deatomize(ValueError)
+        eved.deatomize(ValueError)
 
 def test_detokenize():
     token_list = ['(', 'merge-next', '#:target', '(',
@@ -213,44 +213,44 @@ def test_detokenize():
                    '#:sep', 'null', '#:next-name', 'null', ')',
                   '#:new-name', '"b"', '#:new-sep', '1.5',
                   '#:new-next-name', '"c"', ')']
-    cmd = lc.detokenize(token_list)
+    cmd = eved.detokenize(token_list)
     assert isinstance(cmd, str)
     assert cmd[0] == '('
     assert cmd[-1] == ')'
     assert cmd[12:20] == '#:target'
-    ident = lc.tokenize(cmd)
+    ident = eved.tokenize(cmd)
     assert token_list == ident
 
 def test_write_to_tokens():
-    expr = [lc.Symbol('merge_next'), lc.KeyArg('target'),
-            [lc.Symbol('interval_pair'), lc.KeyArg('index'), 0,
-             lc.KeyArg('name'), None, lc.KeyArg('sep'), None,
-             lc.KeyArg('next_name'), None],
-            lc.KeyArg('new_name'), "b", lc.KeyArg('new_sep'), 1.5,
-            lc.KeyArg('new_next_name'), "c"]
-    token_list = lc.write_to_tokens(expr)
+    expr = [eved.Symbol('merge_next'), eved.KeyArg('target'),
+            [eved.Symbol('interval_pair'), eved.KeyArg('index'), 0,
+             eved.KeyArg('name'), None, eved.KeyArg('sep'), None,
+             eved.KeyArg('next_name'), None],
+            eved.KeyArg('new_name'), "b", eved.KeyArg('new_sep'), 1.5,
+            eved.KeyArg('new_next_name'), "c"]
+    token_list = eved.write_to_tokens(expr)
     assert token_list[0] == '('
     assert token_list[-1] == ')'
     assert token_list[3] == '('
     assert token_list[13] == ')'
     assert token_list[-3] == '#:new-next-name'
     assert token_list[-2] == '"c"'
-    ident = lc.read_from_tokens(token_list)
+    ident = eved.read_from_tokens(token_list)
     assert expr == ident
 
 def test_deparse():
-    s_exprs = [lc.parse(op) for op in TEST_OPS]
-    deparsed = [lc.deparse(e) for e in s_exprs]
+    s_exprs = [eved.parse(op) for op in TEST_OPS]
+    deparsed = [eved.deparse(e) for e in s_exprs]
     assert deparsed == TEST_OPS
 
 def test_invert():
     cmd = '(merge-next #:target (interval-pair #:index 0 #:name null #:sep null #:next-name null) #:new-name "b" #:new-sep 1.5 #:new-next-name "c")'
     hand_inv = '(split #:target (interval-pair #:index 0 #:name "b" #:sep 1.5 #:next-name "c") #:new-name null #:new-sep null #:new-next-name null)'
-    inv = lc.invert(lc.parse(cmd))
-    assert inv == lc.parse(hand_inv)
+    inv = eved.invert(eved.parse(cmd))
+    assert inv == eved.parse(hand_inv)
     
-    ident = lc.invert(lc.invert(lc.parse(cmd)))
-    assert cmd == lc.deparse(ident)
+    ident = eved.invert(eved.invert(eved.parse(cmd)))
+    assert cmd == eved.deparse(ident)
 
 # test CorrectionStack methods
 
@@ -270,24 +270,24 @@ def test_CS_init(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
     assert len(cs.undo_stack) == 0
         
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True)
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
     assert len(cs.undo_stack) == 2
-    assert cs.undo_stack[0] == lc.parse(TEST_OPS[0])
-    assert cs.undo_stack[1] == lc.parse(TEST_OPS[1])
+    assert cs.undo_stack[0] == eved.parse(TEST_OPS[0])
+    assert cs.undo_stack[1] == eved.parse(TEST_OPS[1])
     assert cs.uuid == '0'
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -305,7 +305,7 @@ def test_context_manager(tmpdir):
     
     # exception is passed through, and .bak file is created
     with pytest.raises(ZeroDivisionError):
-        with lc.CorrectionStack(labels=labels,
+        with eved.CorrectionStack(labels=labels,
                                 ops_file=tf.name,
                                 load=True) as cs:
             cs.rename(3, 'eggs')
@@ -315,7 +315,7 @@ def test_context_manager(tmpdir):
     # .bak file contains all operations in stack at time of exception
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with lc.CorrectionStack(labels=labels,
+    with eved.CorrectionStack(labels=labels,
                             ops_file=(tf.name + '.bak'),
                             load=True,
                             apply=True) as cs:
@@ -326,7 +326,7 @@ def test_context_manager(tmpdir):
     # regular file doesn't contain state written to .bak file
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with lc.CorrectionStack(labels=labels,
+    with eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True) as cs:
@@ -338,7 +338,7 @@ def test_context_manager(tmpdir):
     tf2 = make_corr_file(tmpdir)
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with lc.CorrectionStack(labels=labels,
+    with eved.CorrectionStack(labels=labels,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -348,7 +348,7 @@ def test_context_manager(tmpdir):
     # regular exit writes entire stack to regular file
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with lc.CorrectionStack(labels=labels,
+    with eved.CorrectionStack(labels=labels,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -363,18 +363,18 @@ def test_CS_read_from_file(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     cs.read_from_file(tf.name, apply=False)
     # note that this is a bad state
     assert cs.labels == TEST_LABELS
-    assert list(cs.undo_stack) == [lc.parse(op) for op in TEST_OPS]
+    assert list(cs.undo_stack) == [eved.parse(op) for op in TEST_OPS]
     
     cs.read_from_file(tf.name, apply=True)
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
-    assert list(cs.undo_stack) == [lc.parse(op) for op in TEST_OPS]
+    assert list(cs.undo_stack) == [eved.parse(op) for op in TEST_OPS]
     
     os.remove(tf.name)
 
@@ -382,24 +382,24 @@ def test_CS_write_to_file(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
-    cs.push(lc.parse(new_cmd))
+    cs.push(eved.parse(new_cmd))
     os.remove(tf.name)
     cs.write_to_file()
     assert os.path.exists(cs.file)
     assert os.path.exists(cs.file + '.yaml')
     
-    cs_new = lc.CorrectionStack(labels=labels,
+    cs_new = eved.CorrectionStack(labels=labels,
                                 ops_file=tf.name,
                                 load=True,
                                 apply=True)
     assert len(cs_new.undo_stack) == 3
     assert cs_new.undo_stack == cs.undo_stack
-    assert cs_new.undo_stack[-1] == lc.parse(new_cmd)
+    assert cs_new.undo_stack[-1] == eved.parse(new_cmd)
     assert cs_new.label_hash == cs.label_hash
     assert cs_new.uuid == cs.uuid
     
@@ -409,13 +409,13 @@ def test_CS_undo_and_redo(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
-    cs.push(lc.parse(new_cmd))
+    cs.push(eved.parse(new_cmd))
     assert len(cs.undo_stack) == 3
     assert len(cs.redo_stack) == 0
     assert cs.labels[1]['name'] == "z"
@@ -478,7 +478,7 @@ def test_CS_push(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -488,14 +488,14 @@ def test_CS_push(tmpdir):
 
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
-    cs.push(lc.parse(new_cmd)) # push adds new_cmd to head of stack
+    cs.push(eved.parse(new_cmd)) # push adds new_cmd to head of stack
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
     
     cs.undo()
     cs.undo()
-    cs.push(lc.parse(new_cmd)) # TEST_OPS[1] is gone; new_cmd now at head of stack
+    cs.push(eved.parse(new_cmd)) # TEST_OPS[1] is gone; new_cmd now at head of stack
     assert len(cs.undo_stack) == 2
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.2
@@ -507,12 +507,12 @@ def test_CS_peek(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
     p = cs.peek() # default: show op at top of undo_stack
-    assert p == lc.parse(TEST_OPS[1])
+    assert p == eved.parse(TEST_OPS[1])
     
     with pytest.raises(IndexError):
         p = cs.peek(len(cs.undo_stack) + 10)
@@ -521,7 +521,7 @@ def test_CS_peek(tmpdir):
         p = cs.peek(-10)
     
     p = cs.peek(0)
-    assert p == lc.parse(TEST_OPS[0])
+    assert p == eved.parse(TEST_OPS[0])
     
     os.remove(tf.name)
 
@@ -529,13 +529,13 @@ def test_CS__apply(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
-    cs._apply(lc.parse(new_cmd))
+    cs._apply(eved.parse(new_cmd))
     # the stack is now in an undefined state
     # but we can still check that _apply performed the new_cmd operation
     assert cs.labels[1]['name'] == 'z'
@@ -548,7 +548,7 @@ def test_CS_rename():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -562,7 +562,7 @@ def test_CS_set_start():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -576,7 +576,7 @@ def test_CS_set_stop():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -590,7 +590,7 @@ def test_CS_merge_next():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -645,7 +645,7 @@ def test_CS_split():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -665,7 +665,7 @@ def test_CS_delete():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -697,7 +697,7 @@ def test_CS_create():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = lc.CorrectionStack(labels=labels,
+    cs = eved.CorrectionStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
