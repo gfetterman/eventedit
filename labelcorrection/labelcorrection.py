@@ -9,7 +9,7 @@ import hashlib
 import collections
 import functools as ft
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 class CorrectionStack:
     def __init__(self, labels, ops_file, load, apply=False):

@@ -9,7 +9,7 @@ generated on-the-fly.
 Designed to work with Bark-formatted event data."""
 
 setup(name='labelcorrection',
-      version='0.2',
+      version='0.3',
       description='Keep track of manual label corrections',
       long_description=long_desc,
       url='http://github.com/gfetterman/labelcorrection',
