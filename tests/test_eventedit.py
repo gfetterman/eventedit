@@ -252,7 +252,7 @@ def test_invert():
     ident = eved.invert(eved.invert(eved.parse(cmd)))
     assert cmd == eved.deparse(ident)
 
-# test CorrectionStack methods
+# test EditStack methods
 
 def make_corr_file(tmpdir):
     tf = tempfile.NamedTemporaryFile(mode='w', dir=tmpdir.strpath, delete=False)
@@ -270,14 +270,14 @@ def test_CS_init(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
     assert len(cs.undo_stack) == 0
         
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True)
     assert cs.labels == TEST_LABELS
@@ -287,7 +287,7 @@ def test_CS_init(tmpdir):
     assert cs.undo_stack[1] == eved.parse(TEST_OPS[1])
     assert cs.uuid == '0'
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -305,7 +305,7 @@ def test_context_manager(tmpdir):
     
     # exception is passed through, and .bak file is created
     with pytest.raises(ZeroDivisionError):
-        with eved.CorrectionStack(labels=labels,
+        with eved.EditStack(labels=labels,
                                 ops_file=tf.name,
                                 load=True) as cs:
             cs.rename(3, 'eggs')
@@ -315,7 +315,7 @@ def test_context_manager(tmpdir):
     # .bak file contains all operations in stack at time of exception
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with eved.CorrectionStack(labels=labels,
+    with eved.EditStack(labels=labels,
                             ops_file=(tf.name + '.bak'),
                             load=True,
                             apply=True) as cs:
@@ -326,7 +326,7 @@ def test_context_manager(tmpdir):
     # regular file doesn't contain state written to .bak file
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with eved.CorrectionStack(labels=labels,
+    with eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True) as cs:
@@ -338,7 +338,7 @@ def test_context_manager(tmpdir):
     tf2 = make_corr_file(tmpdir)
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with eved.CorrectionStack(labels=labels,
+    with eved.EditStack(labels=labels,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -348,7 +348,7 @@ def test_context_manager(tmpdir):
     # regular exit writes entire stack to regular file
     labels = copy.deepcopy(TEST_LABELS)
     assert labels[3]['name'] == 'd'
-    with eved.CorrectionStack(labels=labels,
+    with eved.EditStack(labels=labels,
                             ops_file=tf2.name,
                             load=True,
                             apply=True) as cs:
@@ -363,7 +363,7 @@ def test_CS_read_from_file(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     cs.read_from_file(tf.name, apply=False)
@@ -382,7 +382,7 @@ def test_CS_write_to_file(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -393,7 +393,7 @@ def test_CS_write_to_file(tmpdir):
     assert os.path.exists(cs.file)
     assert os.path.exists(cs.file + '.yaml')
     
-    cs_new = eved.CorrectionStack(labels=labels,
+    cs_new = eved.EditStack(labels=labels,
                                 ops_file=tf.name,
                                 load=True,
                                 apply=True)
@@ -409,7 +409,7 @@ def test_CS_undo_and_redo(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -478,7 +478,7 @@ def test_CS_push(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -507,7 +507,7 @@ def test_CS_peek(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -529,7 +529,7 @@ def test_CS__apply(tmpdir):
     labels = copy.deepcopy(TEST_LABELS)
     tf = make_corr_file(tmpdir)
     
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True,
                             apply=True)
@@ -548,7 +548,7 @@ def test_CS_rename():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -562,7 +562,7 @@ def test_CS_set_start():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -576,7 +576,7 @@ def test_CS_set_stop():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -590,7 +590,7 @@ def test_CS_merge_next():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -645,7 +645,7 @@ def test_CS_split():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -665,7 +665,7 @@ def test_CS_delete():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     
@@ -697,7 +697,7 @@ def test_CS_create():
     labels = copy.deepcopy(TEST_LABELS)
     tf = tempfile.NamedTemporaryFile(delete=False)
     tf.close()
-    cs = eved.CorrectionStack(labels=labels,
+    cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
     

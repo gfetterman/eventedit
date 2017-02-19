@@ -1,9 +1,9 @@
-# Label Corrections
+# Event Edit
 
 Minilanguage for documenting human corrections to automated vocalization
 labels.
 
-Also includes a stack-styled undo/redo container to keep track of corrections
+Also includes a stack-styled undo/redo container to keep track of edits
 generated on-the-fly.
 
 Designed to work with [Bark](https://github.com/kylerbrown/bark)-formatted event data.

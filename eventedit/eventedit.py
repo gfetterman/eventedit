@@ -11,9 +11,9 @@ import functools as ft
 
 __version__ = "0.3"
 
-class CorrectionStack:
+class EditStack:
     def __init__(self, labels, ops_file, load, apply=False):
-        """Creates a CorrectionStack.
+        """Creates an EditStack.
         
            labels -- a list of dicts denoted event data
            ops_file -- filename string to save operations
