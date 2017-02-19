@@ -7,7 +7,7 @@ import yaml
 import uuid
 import hashlib
 import collections
-import functools
+import functools as ft
 
 __version__ = "0.2"
 
@@ -458,17 +458,18 @@ def parse(cmd):
     return read_from_tokens(tokenize(cmd))
 
 
-def make_env(**kwargs):
+def make_env(labels=None, **kwargs):
     """Returns an environment for s-expression evaluation."""
-    env = {'set_name': functools.partial(_set_value, column='name'),
-           'set_start': functools.partial(_set_value, column='start'),
-           'set_stop': functools.partial(_set_value, column='stop'),
-           'merge_next': _merge_next,
-           'split': _split,
-           'delete': _delete,
-           'create': _create,
+    env = {'set_name': ft.partial(_set_value, labels=labels, column='name'),
+           'set_start': ft.partial(_set_value, labels=labels, column='start'),
+           'set_stop': ft.partial(_set_value, labels=labels, column='stop'),
+           'merge_next': ft.partial(_merge_next, labels=labels),
+           'split': ft.partial(_split, labels=labels),
+           'delete': ft.partial(_delete, labels=labels),
+           'create': ft.partial(_create, labels=labels),
            'interval': dict,
            'interval_pair': dict}
+    env['labels'] = labels
     env.update(kwargs)
     return env
 

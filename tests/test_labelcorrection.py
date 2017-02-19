@@ -10,8 +10,8 @@ TEST_LABELS = [{'start': 1.0, 'stop': 2.1, 'name': 'a'},
                {'start': 2.1, 'stop': 3.5, 'name': 'b'},
                {'start': 3.5, 'stop': 4.2, 'name': 'c'},
                {'start': 4.7, 'stop': 5.0, 'name': 'd'}]
-TEST_OPS = ["""(set-name #:labels labels #:target (interval #:index 0 #:name "a") #:new-name "q")""",
-            """(set-stop #:labels labels #:target (interval #:index 2 #:stop 4.2) #:new-stop 4.5)"""]
+TEST_OPS = ["""(set-name #:target (interval #:index 0 #:name "a") #:new-name "q")""",
+            """(set-stop #:target (interval #:index 2 #:stop 4.2) #:new-stop 4.5)"""]
 
 # test raw label correction operations
 
@@ -170,20 +170,17 @@ def test_whole_stack():
     labels = copy.deepcopy(TEST_LABELS)
     test_env = lc.make_env(labels=labels)
     
-    cmd = """(set-name #:labels labels
-                       #:target (interval #:index 0 #:name "a")
+    cmd = """(set-name #:target (interval #:index 0 #:name "a")
                        #:new-name "b")"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
-    cmd = """(set-start #:labels labels
-                           #:target (interval #:index 1 #:start 3.141)
+    cmd = """(set-start #:target (interval #:index 1 #:start 3.141)
                            #:new-start 2.2)"""
     lc.evaluate(lc.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2
     
-    cmd = """(merge-next #:labels labels
-                         #:target (interval-pair #:index 1
+    cmd = """(merge-next #:target (interval-pair #:index 1
                                                  #:name "b"
                                                  #:stop 3.240
                                                  #:next-start 3.240
@@ -196,8 +193,7 @@ def test_whole_stack():
     assert len(labels) == len(TEST_LABELS) - 1
     assert labels[1]['stop'] == TEST_LABELS[2]['stop']
     
-    cmd = """(split #:labels labels
-                    #:target (interval-pair #:index 1
+    cmd = """(split #:target (interval-pair #:index 1
                                             #:name null
                                             #:stop null
                                             #:next-start null
@@ -407,7 +403,7 @@ def test_CS_write_to_file(tmpdir):
                             ops_file=tf.name,
                             load=True,
                             apply=True)
-    new_cmd = """(set-name #:labels labels #:target (interval #:index 1 #:name "b") #:new-name "z")"""
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(lc.parse(new_cmd))
     os.remove(tf.name)
     cs.write_to_file()
@@ -434,8 +430,7 @@ def test_CS_undo_and_redo(tmpdir):
                             ops_file=tf.name,
                             load=True,
                             apply=True)
-    new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:name "b")
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs.push(lc.parse(new_cmd))
     assert len(cs.undo_stack) == 3
@@ -508,8 +503,7 @@ def test_CS_push(tmpdir):
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
 
-    new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:name "b")
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs.push(lc.parse(new_cmd)) # push adds new_cmd to head of stack
     assert cs.labels[1]['name'] == "z"
@@ -556,8 +550,7 @@ def test_CS__apply(tmpdir):
                             ops_file=tf.name,
                             load=True,
                             apply=True)
-    new_cmd = """(set-name #:labels labels
-                           #:target (interval #:index 1 #:name "b")
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs._apply(lc.parse(new_cmd))
     # the stack is now in an undefined state
