@@ -193,7 +193,8 @@ def _set_value(labels, target, column, **kwargs):
     labels[target['index']][column] # raise KeyError if column not present
     labels[target['index']][column] = kwargs['new_' + column]
 
-def _merge_next(labels, target, **kwargs):
+def _merge_next(labels, target, **_):
+    # **_ contains throwaway args needed to allow inversion, but not used here
     index = target['index']
     labels[index]['stop'] = labels[index + 1]['stop']
     labels.pop(index + 1)
