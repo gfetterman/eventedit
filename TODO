@@ -2,5 +2,4 @@
 
 + changes discussed in conversation with KJB 2/20/17
   + remove hash_post
-  + consider moving _gen_code out of stack
   + remove ignored kwargs
