@@ -1,2 +1,8 @@
 # TODO
 
++ changes discussed in conversation with KJB 2/20/17
+  + remove hash_post
+  + check hash_pre when loading ops/labels
+  + remove option to load but assume already applied
+  + consider moving _gen_code out of stack
+  + remove ignored kwargs
