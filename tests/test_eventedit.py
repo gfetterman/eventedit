@@ -261,8 +261,7 @@ def make_corr_file(tmpdir):
     tf.close()
     with open((tf.name + '.yaml'), 'w') as mdfp:
         mdfp.write("""# corrections metadata, YAML\n---\n""")
-        file_metadata = {'hash_pre': eved.event_hash(TEST_LABELS),
-                         'hash_post': '0123-4568'}
+        file_metadata = {'hash_pre': eved.event_hash(TEST_LABELS)}
         mdfp.write(yaml.safe_dump(file_metadata))
     return tf
 
@@ -288,7 +287,6 @@ def test_CS_init(tmpdir):
     assert cs.labels[3] == TEST_LABELS[3]
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
-    assert cs.hash_post == '0123-4568'
     
     os.remove(tf.name)
 
@@ -384,7 +382,6 @@ def test_CS_write_to_file(tmpdir):
     assert cs_new.undo_stack == cs.undo_stack
     assert cs_new.undo_stack[-1] == eved.parse(new_cmd)
     assert cs_new.hash_pre == cs.hash_pre
-    assert cs_new.hash_post == cs.hash_post
     
     os.remove(tf.name)
 

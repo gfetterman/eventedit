@@ -26,7 +26,6 @@ class EditStack:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
             self.hash_pre = event_hash(self.labels)
-            self.hash_post = event_hash(self.labels)
     
     def __enter__(self):
         return self
@@ -50,7 +49,6 @@ class EditStack:
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.hash_pre = file_data['hash_pre']
-            self.hash_post = file_data['hash_post']
         if self.hash_pre != event_hash(self.labels):
             raise ValueError('label file hash does not match op file hash_pre')
         with codecs.open(self.file, 'r', encoding='utf-8') as fp:
@@ -71,7 +69,7 @@ class EditStack:
                 fp.write(deparse(op) + '\n')
         with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
             self.hash_post = event_hash(self.labels)
-            file_data = {'hash_pre': self.hash_pre, 'hash_post': self.hash_post}
+            file_data = {'hash_pre': self.hash_pre}
             mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
     
