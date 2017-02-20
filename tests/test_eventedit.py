@@ -261,7 +261,7 @@ def make_corr_file(tmpdir):
     tf.close()
     with open((tf.name + '.yaml'), 'w') as mdfp:
         mdfp.write("""# corrections metadata, YAML\n---\n""")
-        file_metadata = {'hash_pre': '0123-4567',
+        file_metadata = {'hash_pre': eved.event_hash(TEST_LABELS),
                          'hash_post': '0123-4568'}
         mdfp.write(yaml.safe_dump(file_metadata))
     return tf
@@ -376,6 +376,7 @@ def test_CS_write_to_file(tmpdir):
     assert os.path.exists(cs.file)
     assert os.path.exists(cs.file + '.yaml')
     
+    labels = copy.deepcopy(TEST_LABELS)
     cs_new = eved.EditStack(labels=labels,
                                 ops_file=tf.name,
                                 load=True)

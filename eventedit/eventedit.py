@@ -25,8 +25,8 @@ class EditStack:
         else:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
-            self.hash_pre = self.event_hash()
-            self.hash_post = self.event_hash()
+            self.hash_pre = event_hash(self.labels)
+            self.hash_post = event_hash(self.labels)
     
     def __enter__(self):
         return self
@@ -39,26 +39,26 @@ class EditStack:
             self.write_to_file(self.file + '.bak')
             return False
     
-    def event_hash(self):
-        """Returns SHA-1 hash of current event list state."""
-        return hashlib.sha1(repr(self.labels).encode()).hexdigest()
-    
     def read_from_file(self, file=None):
         """Read a stack of corrections plus metadata from file.
            
-           file -- if not present, use self.file"""
+           file -- if not present, use self.file
+           
+           Raises ValueError if pre-operation hashes don't match."""
         if file:
             self.file = file
+        with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
+            file_data = yaml.safe_load(mdfp)
+            self.hash_pre = file_data['hash_pre']
+            self.hash_post = file_data['hash_post']
+        if self.hash_pre != event_hash(self.labels):
+            raise ValueError('label file hash does not match op file hash_pre')
         with codecs.open(self.file, 'r', encoding='utf-8') as fp:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
             for op in fp:
                 if op != '\n':
                     self.push(parse(op.strip()))
-        with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
-            file_data = yaml.safe_load(mdfp)
-            self.hash_pre = file_data['hash_pre']
-            self.hash_post = file_data['hash_post']
     
     def write_to_file(self, file=None):
         """Write stack of corrections plus metadata to file.
@@ -70,7 +70,7 @@ class EditStack:
             for op in self.undo_stack:
                 fp.write(deparse(op) + '\n')
         with codecs.open((self.file + '.yaml'), 'w', encoding='utf-8') as mdfp:
-            self.hash_post = self.event_hash()
+            self.hash_post = event_hash(self.labels)
             file_data = {'hash_pre': self.hash_pre, 'hash_post': self.hash_post}
             mdfp.write("""# corrections metadata, YAML syntax\n---\n""")
             mdfp.write(yaml.safe_dump(file_data, default_flow_style=False))
@@ -430,3 +430,7 @@ def _grouper(iterable, n):
         return itertools.izip_longest(*args)
     except AttributeError: # python 2/3 support
         return itertools.zip_longest(*args)
+
+def event_hash(events):
+    """Returns SHA-1 hash of given event list (assumed to be list of dicts)."""
+    return hashlib.sha1(repr(events).encode()).hexdigest()
