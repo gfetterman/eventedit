@@ -12,17 +12,16 @@ import functools as ft
 __version__ = "0.3"
 
 class EditStack:
-    def __init__(self, labels, ops_file, load, apply=False):
+    def __init__(self, labels, ops_file, load):
         """Creates an EditStack.
         
            labels -- a list of dicts denoted event data
            ops_file -- filename string to save operations
-           load -- bool; if True, load from ops_file
-           apply -- bool; if True and if load, apply corrections in ops_file"""
+           load -- bool; if True, load from ops_file and apply to labels"""
         self.labels = labels
         self.file = ops_file
         if load:
-            self.read_from_file(apply=apply)
+            self.read_from_file()
         else:
             self.undo_stack = collections.deque()
             self.redo_stack = collections.deque()
@@ -44,12 +43,10 @@ class EditStack:
         """Returns SHA-1 hash of current event list state."""
         return hashlib.sha1(repr(self.labels).encode()).hexdigest()
     
-    def read_from_file(self, file=None, apply=False):
+    def read_from_file(self, file=None):
         """Read a stack of corrections plus metadata from file.
            
-           file -- if not present, use self.file
-           apply -- bool; if True, apply loaded corrections
-                          if False, assume corrections already applied"""
+           file -- if not present, use self.file"""
         if file:
             self.file = file
         with codecs.open(self.file, 'r', encoding='utf-8') as fp:
@@ -57,9 +54,7 @@ class EditStack:
             self.redo_stack = collections.deque()
             for op in fp:
                 if op != '\n':
-                    if apply:
-                        self._apply(parse(op.strip()))
-                    self.undo_stack.append(parse(op.strip()))
+                    self.push(parse(op.strip()))
         with codecs.open((self.file + '.yaml'), 'r', encoding='utf-8') as mdfp:
             file_data = yaml.safe_load(mdfp)
             self.hash_pre = file_data['hash_pre']

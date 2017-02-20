@@ -280,22 +280,15 @@ def test_CS_init(tmpdir):
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True)
-    assert cs.labels == TEST_LABELS
     assert cs.file == tf.name
     assert len(cs.undo_stack) == 2
     assert cs.undo_stack[0] == eved.parse(TEST_OPS[0])
     assert cs.undo_stack[1] == eved.parse(TEST_OPS[1])
-    assert cs.hash_post == '0123-4568'
-    
-    cs = eved.EditStack(labels=labels,
-                            ops_file=tf.name,
-                            load=True,
-                            apply=True)
-    assert cs.file == tf.name
     assert cs.labels[1] == TEST_LABELS[1]
     assert cs.labels[3] == TEST_LABELS[3]
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
+    assert cs.hash_post == '0123-4568'
     
     os.remove(tf.name)
 
@@ -317,8 +310,7 @@ def test_context_manager(tmpdir):
     assert labels[3]['name'] == 'd'
     with eved.EditStack(labels=labels,
                             ops_file=(tf.name + '.bak'),
-                            load=True,
-                            apply=True) as cs:
+                            load=True) as cs:
         assert cs.labels[0]['name'] == 'q'
         assert cs.labels[2]['stop'] == 4.5
         assert cs.labels[3]['name'] == 'eggs'
@@ -328,8 +320,7 @@ def test_context_manager(tmpdir):
     assert labels[3]['name'] == 'd'
     with eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True) as cs:
+                            load=True) as cs:
         assert cs.labels[0]['name'] == 'q'
         assert cs.labels[2]['stop'] == 4.5
         assert cs.labels[3]['name'] == 'd'
@@ -340,8 +331,7 @@ def test_context_manager(tmpdir):
     assert labels[3]['name'] == 'd'
     with eved.EditStack(labels=labels,
                             ops_file=tf2.name,
-                            load=True,
-                            apply=True) as cs:
+                            load=True) as cs:
         cs.rename(3, 'eggs')
     assert not os.path.exists(tf2.name + '.bak')
     
@@ -350,8 +340,7 @@ def test_context_manager(tmpdir):
     assert labels[3]['name'] == 'd'
     with eved.EditStack(labels=labels,
                             ops_file=tf2.name,
-                            load=True,
-                            apply=True) as cs:
+                            load=True) as cs:
         assert cs.labels[0]['name'] == 'q'
         assert cs.labels[2]['stop'] == 4.5
         assert cs.labels[3]['name'] == 'eggs'
@@ -366,12 +355,7 @@ def test_CS_read_from_file(tmpdir):
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
-    cs.read_from_file(tf.name, apply=False)
-    # note that this is a bad state
-    assert cs.labels == TEST_LABELS
-    assert list(cs.undo_stack) == [eved.parse(op) for op in TEST_OPS]
-    
-    cs.read_from_file(tf.name, apply=True)
+    cs.read_from_file(tf.name)
     assert cs.labels[0]['name'] == 'q'
     assert cs.labels[2]['stop'] == 4.5
     assert list(cs.undo_stack) == [eved.parse(op) for op in TEST_OPS]
@@ -384,8 +368,7 @@ def test_CS_write_to_file(tmpdir):
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True)
+                            load=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(eved.parse(new_cmd))
     os.remove(tf.name)
@@ -395,8 +378,7 @@ def test_CS_write_to_file(tmpdir):
     
     cs_new = eved.EditStack(labels=labels,
                                 ops_file=tf.name,
-                                load=True,
-                                apply=True)
+                                load=True)
     assert len(cs_new.undo_stack) == 3
     assert cs_new.undo_stack == cs.undo_stack
     assert cs_new.undo_stack[-1] == eved.parse(new_cmd)
@@ -411,8 +393,7 @@ def test_CS_undo_and_redo(tmpdir):
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True)
+                            load=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs.push(eved.parse(new_cmd))
@@ -480,8 +461,7 @@ def test_CS_push(tmpdir):
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True)
+                            load=True)
     assert cs.labels[1]['name'] == "b"
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
@@ -509,8 +489,7 @@ def test_CS_peek(tmpdir):
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True)
+                            load=True)
     p = cs.peek() # default: show op at top of undo_stack
     assert p == eved.parse(TEST_OPS[1])
     
@@ -531,8 +510,7 @@ def test_CS__apply(tmpdir):
     
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
-                            load=True,
-                            apply=True)
+                            load=True)
     new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
                            #:new-name "z")"""
     cs._apply(eved.parse(new_cmd))
