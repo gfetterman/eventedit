@@ -9,7 +9,7 @@ generated on-the-fly.
 Designed to work with Bark-formatted event data."""
 
 setup(name='eventedit',
-      version='0.4.1',
+      version='0.4.2',
       description='Keep track of manual edits to event data',
       long_description=long_desc,
       url='http://github.com/gfetterman/eventedit',

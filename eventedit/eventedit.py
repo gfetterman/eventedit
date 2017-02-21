@@ -9,7 +9,7 @@ import hashlib
 import collections
 import functools as ft
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 class EditStack:
     def __init__(self, labels, ops_file, load):
