@@ -327,8 +327,8 @@ def tokenize(cmd):
     """Turns a command string into a flat token list."""
     second_pass = []
     in_string = False
-    for token in cmd.split():
-        if token[0] == '"' and not in_string: # open quote
+    for token in cmd.split(' '):
+        if len(token) > 0 and token[0] == '"' and not in_string: # open quote
             second_pass.append(token)
             if token.count('"') != 2:
                 in_string = True

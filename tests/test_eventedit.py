@@ -161,34 +161,20 @@ def test_whole_stack():
     labels = copy.deepcopy(TEST_LABELS)
     test_env = eved.make_env(labels=labels)
     
-    cmd = """(set-name #:target (interval #:index 0 #:name "a")
-                       #:new-name "b")"""
+    cmd = """(set-name #:target (interval #:index 0 #:name "a") #:new-name "b")"""
     eved.evaluate(eved.parse(cmd), test_env)
     assert labels[0]['name'] == 'b'
     
-    cmd = """(set-start #:target (interval #:index 1 #:start 3.141)
-                           #:new-start 2.2)"""
+    cmd = """(set-start #:target (interval #:index 1 #:start 3.141) #:new-start 2.2)"""
     eved.evaluate(eved.parse(cmd), test_env)
     assert labels[1]['start'] == 2.2
     
-    cmd = """(merge-next #:target (interval #:index 1
-                                            #:name "b"
-                                            #:stop 3.240
-                                            #:next-start 3.240
-                                            #:next-name "silence")
-                         #:new_stop null
-                         #:new_next_start null)"""
+    cmd = """(merge-next #:target (interval #:index 1 #:name "b" #:stop 3.240 #:next-start 3.240 #:next-name "silence") #:new_stop null #:new_next_start null)"""
     eved.evaluate(eved.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS) - 1
     assert labels[1]['stop'] == TEST_LABELS[2]['stop']
     
-    cmd = """(split #:target (interval #:index 1
-                                       #:name "b"
-                                       #:stop null
-                                       #:next-start null
-                                       #:next-name "b")
-                    #:new_stop 3.5
-                    #:new_next_start 3.5)"""
+    cmd = """(split #:target (interval #:index 1 #:name "b" #:stop null #:next-start null #:next-name "b") #:new_stop 3.5 #:new_next_start 3.5)"""
     eved.evaluate(eved.parse(cmd), test_env)
     assert len(labels) == len(TEST_LABELS)
     assert labels[1]['stop'] == TEST_LABELS[1]['stop']
@@ -396,8 +382,7 @@ def test_CS_undo_and_redo(tmpdir):
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True)
-    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
-                           #:new-name "z")"""
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(eved.parse(new_cmd))
     assert len(cs.undo_stack) == 3
     assert len(cs.redo_stack) == 0
@@ -468,8 +453,7 @@ def test_CS_push(tmpdir):
     assert cs.labels[2]['stop'] == 4.5
     assert cs.labels[0]['name'] == "q"
 
-    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
-                           #:new-name "z")"""
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs.push(eved.parse(new_cmd)) # push adds new_cmd to head of stack
     assert cs.labels[1]['name'] == "z"
     assert cs.labels[2]['stop'] == 4.5
@@ -513,8 +497,7 @@ def test_CS__apply(tmpdir):
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=True)
-    new_cmd = """(set-name #:target (interval #:index 1 #:name "b")
-                           #:new-name "z")"""
+    new_cmd = """(set-name #:target (interval #:index 1 #:name "b") #:new-name "z")"""
     cs._apply(eved.parse(new_cmd))
     # the stack is now in an undefined state
     # but we can still check that _apply performed the new_cmd operation
