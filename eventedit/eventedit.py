@@ -135,6 +135,8 @@ class EditStack:
     
     def codegen_rename(self, index, new_name):
         """Generates s-expression to rename an event."""
+        if '"' in new_name:
+            raise ValueError('" character disallowed in event names')
         new_vals = {'name': new_name}
         old_vals = set()
         return gen_code(self.labels, 'set_name', index, new_vals, old_vals)

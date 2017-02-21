@@ -531,6 +531,9 @@ def test_CS_rename():
     cs = eved.EditStack(labels=labels,
                             ops_file=tf.name,
                             load=False)
+
+    with pytest.raises(ValueError):
+        cs.rename(0, '"cannot use double-quotes"')
     
     cs.rename(0, 'q')
     assert len(cs.undo_stack) == 1
