@@ -677,3 +677,15 @@ def test_CS_create():
     assert cs.labels[1] == TEST_LABELS[0]
 
     os.remove(tf.name)
+
+
+def test_event_hash():
+    d1 = {'a': 1, 'b': 2, 'c': 3}
+    d2 = {'d': 4, 'e': 5, 'f': 6}
+    d3 = {'b': 2, 'a': 1, 'c': 3}
+    d4 = {'f': 6, 'd': 4, 'e': 5}
+    
+    dl1 = [d1, d2]
+    dl2 = [d3, d4]
+    
+    assert eved.event_hash(dl1) == eved.event_hash(dl2)

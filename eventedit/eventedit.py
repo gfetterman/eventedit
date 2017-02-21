@@ -444,4 +444,7 @@ def _grouper(iterable, n):
 
 def event_hash(events):
     """Returns SHA-1 hash of given event list (assumed to be list of dicts)."""
-    return hashlib.sha1(repr(events).encode()).hexdigest()
+    eh = hashlib.sha1()
+    for e in events:
+        eh.update(repr(sorted(e.items())).encode())
+    return eh.hexdigest()
